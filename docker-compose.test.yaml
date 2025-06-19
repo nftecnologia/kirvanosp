@@ -1,66 +1,23 @@
-version: '3'
+version: '3.9'
 
 services:
-  base: &base
-    build:
-      context: .
-      dockerfile: ./docker/Dockerfile
-      args:
-        BUNDLE_WITHOUT: 'development:test'
-        EXECJS_RUNTIME: Disabled
-        RAILS_ENV: 'production'
-        RAILS_SERVE_STATIC_FILES: 'true'
-    image: kirvano:latest
-    env_file: .env ## Change this file for customized env variables
-
-  rails:
-    <<: *base
-    image: kirvano:latest
+  web:
+    build: .
+    command: bundle exec rspec
+    env_file:
+      - .env.test
     depends_on:
-      - postgres
+      - db
       - redis
-    ports:
-      - 3000:3000
-    environment:
-      - NODE_ENV=production
-      - RAILS_ENV=production
-    entrypoint: docker/entrypoints/rails.sh
-    command: ['bundle', 'exec', 'rails', 's', '-p', '3000', '-b', '0.0.0.0']
 
-  sidekiq:
-    <<: *base
-    image: kirvano:latest
-    depends_on:
-      - postgres
-      - redis
+  db:
+    image: postgres:15
     environment:
-      - NODE_ENV=production
-      - RAILS_ENV=production
-    command: ['bundle', 'exec', 'sidekiq', '-C', 'config/sidekiq.yml']
-
-  postgres:
-    image: pgvector/pgvector:pg16
-    restart: always
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: kirvano_test
     ports:
-      - '5432:5432'
-    volumes:
-      - postgres:/data/postgres
-    environment:
-      - POSTGRES_DB=kirvano
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=
+      - "5434:5432"
 
   redis:
-    image: redis:alpine
-    restart: always
-    volumes:
-      - redis:/data/redis
-    ports:
-      - '6379:6379'
-
-volumes:
-  postgres:
-  redis:
-  bundle:
-  packs:
-  node_modules_rails:
+    image: redis:7

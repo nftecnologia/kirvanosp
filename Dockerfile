@@ -1,16 +1,31 @@
-FROM ruby:3.2
+FROM ruby:3.4.4
 
-RUN apt-get update -qq && apt-get install -y build-essential libpq-dev nodejs yarn
+# Instala dependências
+RUN apt-get update -qq && apt-get install -y \
+  build-essential \
+  libpq-dev \
+  nodejs \
+  yarn \
+  libvips
 
-WORKDIR /kirvano
+# Diretório da aplicação
+WORKDIR /app
 
-COPY . .
-
+# Copia Gemfile e instala as gems
+COPY Gemfile Gemfile.lock ./
 RUN gem install bundler
 RUN bundle install
+
+# Copia o restante da aplicação
+COPY . .
+
+# Instala dependências JS
 RUN yarn install
+
+# Precompila assets
 RUN bundle exec rake assets:precompile
 
 EXPOSE 3000
 
-CMD ["bundle", "exec", "rails", "server", "-b", "0.0.0.0"]
+# Comando padrão
+CMD ["bundle", "exec", "puma", "-C", "config/puma.rb"]

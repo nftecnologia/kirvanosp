@@ -1,62 +1,20 @@
-# Variables
-APP_NAME := kirvano
-RAILS_ENV ?= development
+up:
+	docker-compose up --build
 
-# Targets
-setup:
-	gem install bundler
-	bundle install
-	pnpm install
+prod:
+	docker-compose -f docker-compose.yml -f docker-compose.production.yml up --build
 
-db_create:
-	RAILS_ENV=$(RAILS_ENV) bundle exec rails db:create
+test:
+	docker-compose -f docker-compose.yml -f docker-compose.test.yml up --build
 
-db_migrate:
-	RAILS_ENV=$(RAILS_ENV) bundle exec rails db:migrate
+down:
+	docker-compose down
 
-db_seed:
-	RAILS_ENV=$(RAILS_ENV) bundle exec rails db:seed
+build:
+	docker-compose build
 
-db_reset:
-	RAILS_ENV=$(RAILS_ENV) bundle exec rails db:reset
+logs:
+	docker-compose logs -f
 
-db:
-	RAILS_ENV=$(RAILS_ENV) bundle exec rails db:kirvano_prepare
-
-console:
-	RAILS_ENV=$(RAILS_ENV) bundle exec rails console
-
-server:
-	RAILS_ENV=$(RAILS_ENV) bundle exec rails server -b 0.0.0.0 -p 3000
-
-burn:
-	bundle && pnpm install
-
-run:
-	@if [ -f ./.overmind.sock ]; then \
-		echo "Overmind is already running. Use 'make force_run' to start a new instance."; \
-	else \
-		overmind start -f Procfile.dev; \
-	fi
-
-force_run:
-	rm -f ./.overmind.sock
-	rm -f tmp/pids/*.pid
-	overmind start -f Procfile.dev
-
-force_run_tunnel:
-	lsof -ti:3000 | xargs kill -9 2>/dev/null || true
-	rm -f ./.overmind.sock
-	rm -f tmp/pids/*.pid
-	overmind start -f Procfile.tunnel
-
-debug:
-	overmind connect backend
-
-debug_worker:
-	overmind connect worker
-
-docker: 
-	docker build -t $(APP_NAME) -f ./docker/Dockerfile .
-
-.PHONY: setup db_create db_migrate db_seed db_reset db console server burn docker run force_run force_run_tunnel debug debug_worker
+bash:
+	docker-compose exec web bash
