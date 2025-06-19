@@ -1,0 +1,6 @@
+# give kirvano user permission to start/stop/restart kirvano systemd service
+
+%kirvano ALL=NOPASSWD: /bin/systemctl start kirvano.target
+%kirvano ALL=NOPASSWD: /bin/systemctl stop kirvano.target
+%kirvano ALL=NOPASSWD: /bin/systemctl restart kirvano.target
+%kirvano ALL=NOPASSWD: /usr/local/bin/cwctl
