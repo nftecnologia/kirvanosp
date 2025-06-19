@@ -1,0 +1,23 @@
+#!/bin/bash
+set -e
+
+# Remove um PID file pré-existente do servidor.
+rm -f /app/tmp/pids/server.pid
+
+# Aguarda o banco de dados estar disponível
+until pg_isready -h $DATABASE_HOST -p ${DATABASE_PORT:-5432} -U $DATABASE_USERNAME
+do
+  echo "Aguardando o banco de dados..."
+  sleep 2
+done
+
+echo "Banco de dados disponível!"
+
+# Executa migrações se for o serviço web
+if [ "$1" = "web" ]; then
+  echo "Executando migrações..."
+  bundle exec rake db:migrate
+fi
+
+# Executa o comando passado
+exec "$@" 

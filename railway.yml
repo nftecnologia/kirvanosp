@@ -1,0 +1,40 @@
+version: "1"
+
+services:
+  web:
+    # Build da aplicação
+    build:
+      dockerfile: Dockerfile
+    
+    # Comando para o serviço web
+    startCommand: bundle exec puma -C config/puma.rb
+    
+    # Variáveis de ambiente
+    variables:
+      RAILS_ENV: production
+      NODE_ENV: production
+      RAILS_SERVE_STATIC_FILES: true
+      RAILS_LOG_TO_STDOUT: true
+    
+    # Configurações de build
+    buildCommand: |
+      bundle exec rake db:prepare
+    
+    # Porta do serviço
+    port: 3000
+
+  worker:
+    # Build da aplicação
+    build:
+      dockerfile: Dockerfile
+    
+    # Comando para o worker Sidekiq
+    startCommand: bundle exec sidekiq -C config/sidekiq.yml
+    
+    # Variáveis de ambiente
+    variables:
+      RAILS_ENV: production
+      NODE_ENV: production
+      RAILS_LOG_TO_STDOUT: true
+    
+    # Worker não precisa de porta 
