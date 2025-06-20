@@ -74,6 +74,9 @@ export default defineConfig({
   resolve: {
     alias: {
       vue: 'vue/dist/vue.esm-bundler.js',
+      '@kirvano/utils': path.resolve('./app/javascript/shared/utils'),
+      '@kirvano/prosemirror-schema': path.resolve('./app/javascript/shared/prosemirror'),
+      '@kirvano/ninja-keys': 'ninja-keys',
       components: path.resolve('./app/javascript/dashboard/components'),
       next: path.resolve('./app/javascript/dashboard/components-next'),
       v3: path.resolve('./app/javascript/v3'),
@@ -83,6 +86,7 @@ export default defineConfig({
       survey: path.resolve('./app/javascript/survey'),
       widget: path.resolve('./app/javascript/widget'),
       assets: path.resolve('./app/javascript/dashboard/assets'),
+      'reset': path.resolve('./app/javascript/widget/assets/scss/reset.scss'),
     },
   },
   test: {
