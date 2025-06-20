@@ -12,11 +12,9 @@ export RAILS_ENV="${RAILS_ENV:-production}"
 
 echo "Iniciando aplicação em modo $RAILS_ENV..."
 
-# Executa migrações se for o serviço web
-if [ "$1" = "web" ]; then
-  echo "Executando migrações..."
-  bundle exec rake db:create db:migrate || echo "Erro nas migrações, continuando..."
-fi
+# Sempre executar migrações e preparar banco
+echo "Executando migrações e preparação do banco..."
+bundle exec rake db:prepare || echo "Erro nas migrações, continuando..."
 
 # Executa o comando passado
 exec "$@" 
