@@ -4,14 +4,16 @@ set -e
 # Remove um PID file pré-existente do servidor.
 rm -f /app/tmp/pids/server.pid
 
-# Aguarda o banco de dados estar disponível
-until pg_isready -h $DATABASE_HOST -p ${DATABASE_PORT:-5432} -U $DATABASE_USERNAME
-do
+# Aguarda o banco de dados estar disponível usando DATABASE_URL
+if [ -n "$DATABASE_URL" ]; then
   echo "Aguardando o banco de dados..."
-  sleep 2
-done
-
-echo "Banco de dados disponível!"
+  until bundle exec rails runner "ActiveRecord::Base.connection.execute('SELECT 1')" >/dev/null 2>&1
+  do
+    echo "Aguardando conexão com o banco de dados..."
+    sleep 2
+  done
+  echo "Banco de dados disponível!"
+fi
 
 # Executa migrações se for o serviço web
 if [ "$1" = "web" ]; then
