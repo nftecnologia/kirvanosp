@@ -11,13 +11,18 @@ module Enterprise::DeviseOverrides::SessionsController
 
   def create_audit_event(action)
     return unless @resource
-    return unless @resource.respond_to?(:audits)
+
+    # Usar try para verificar se audits está disponível de forma segura
+    return unless @resource.try(:audits)
 
     if @resource.accounts.empty?
       create_audit_without_account(action)
     else
       create_audit_with_accounts(action)
     end
+  rescue StandardError => e
+    Rails.logger.error "Failed to create audit event: #{e.message}"
+    Rails.logger.error e.backtrace.join("\n")
   end
 
   private
