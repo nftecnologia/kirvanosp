@@ -13,25 +13,33 @@ module Enterprise::DeviseOverrides::SessionsController
     return unless @resource
     return unless @resource.respond_to?(:audits)
 
-    # Para SuperAdmin e outros usuários sem contas associadas
     if @resource.accounts.empty?
+      create_audit_without_account(action)
+    else
+      create_audit_with_accounts(action)
+    end
+  end
+
+  private
+
+  def create_audit_without_account(action)
+    @resource.audits.create(
+      action: action,
+      user_id: @resource.id,
+      associated_id: nil,
+      associated_type: nil
+    )
+  end
+
+  def create_audit_with_accounts(action)
+    associated_type = 'Account'
+    @resource.accounts.each do |account|
       @resource.audits.create(
         action: action,
         user_id: @resource.id,
-        associated_id: nil,
-        associated_type: nil
+        associated_id: account.id,
+        associated_type: associated_type
       )
-    else
-      # Para usuários normais com contas associadas
-      associated_type = 'Account'
-      @resource.accounts.each do |account|
-        @resource.audits.create(
-          action: action,
-          user_id: @resource.id,
-          associated_id: account.id,
-          associated_type: associated_type
-        )
-      end
     end
   end
 end
