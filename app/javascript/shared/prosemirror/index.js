@@ -1,18 +1,20 @@
+/* eslint-disable max-classes-per-file */
 // Re-exports from official ProseMirror packages to replace @kirvano/prosemirror-schema
 import { schema as basicSchema } from 'prosemirror-schema-basic';
+import { EditorState, Plugin, PluginKey } from 'prosemirror-state';
+import { EditorView } from 'prosemirror-view';
+import { MarkdownParser, MarkdownSerializer } from 'prosemirror-markdown';
+
+// Export all the imports
 export { schema } from 'prosemirror-schema-basic';
-export { 
+export {
   EditorState,
   Plugin,
   PluginKey,
   Transaction,
-  Selection 
+  Selection,
 } from 'prosemirror-state';
-export { 
-  EditorView,
-  Decoration,
-  DecorationSet 
-} from 'prosemirror-view';
+export { EditorView, Decoration, DecorationSet } from 'prosemirror-view';
 export {
   Node,
   Fragment,
@@ -20,7 +22,7 @@ export {
   Mark,
   Schema,
   NodeType,
-  MarkType
+  MarkType,
 } from 'prosemirror-model';
 export { MarkdownParser, MarkdownSerializer } from 'prosemirror-markdown';
 
@@ -34,20 +36,27 @@ export const fullSchema = basicSchema;
 export class MessageMarkdownTransformer {
   constructor(schema) {
     this.schema = schema;
-    this.parser = new MarkdownParser(schema, {
-      blockquote: { block: "blockquote" },
-      paragraph: { block: "paragraph" },
-      list_item: { block: "list_item" },
-      bullet_list: { block: "bullet_list" },
-      ordered_list: { block: "ordered_list" },
-      heading: { block: "heading", getAttrs: token => ({ level: +token.attrGet("level") || 1 }) },
-      code_block: { block: "code_block" },
-      hard_break: { node: "hard_break" },
-    }, {
-      em: { mark: "em" },
-      strong: { mark: "strong" },
-      code: { mark: "code" },
-    });
+    this.parser = new MarkdownParser(
+      schema,
+      {
+        blockquote: { block: 'blockquote' },
+        paragraph: { block: 'paragraph' },
+        list_item: { block: 'list_item' },
+        bullet_list: { block: 'bullet_list' },
+        ordered_list: { block: 'ordered_list' },
+        heading: {
+          block: 'heading',
+          getAttrs: token => ({ level: +token.attrGet('level') || 1 }),
+        },
+        code_block: { block: 'code_block' },
+        hard_break: { node: 'hard_break' },
+      },
+      {
+        em: { mark: 'em' },
+        strong: { mark: 'strong' },
+        code: { mark: 'code' },
+      }
+    );
   }
 
   parse(markdown) {
@@ -55,56 +64,59 @@ export class MessageMarkdownTransformer {
   }
 }
 
-// Basic markdown serializer implementation  
+// Basic markdown serializer implementation
 export class MessageMarkdownSerializer {
   static serialize(doc) {
-    const serializer = new MarkdownSerializer({
-      blockquote: (state, node) => {
-        state.wrapBlock("> ", null, node, () => state.renderContent(node));
+    const serializer = new MarkdownSerializer(
+      {
+        blockquote: (state, node) => {
+          state.wrapBlock('> ', null, node, () => state.renderContent(node));
+        },
+        code_block: (state, node) => {
+          state.write('```\n');
+          state.text(node.textContent);
+          state.write('\n```');
+          state.closeBlock(node);
+        },
+        heading: (state, node) => {
+          state.write('#'.repeat(node.attrs.level) + ' ');
+          state.renderInline(node);
+          state.closeBlock(node);
+        },
+        horizontal_rule: (state, node) => {
+          state.write('---');
+          state.closeBlock(node);
+        },
+        bullet_list: (state, node) => {
+          state.renderList(node, '  ', () => '* ');
+        },
+        ordered_list: (state, node) => {
+          let start = node.attrs.order || 1;
+          let maxW = String(start + node.childCount - 1).length;
+          let space = ' '.repeat(maxW + 2);
+          state.renderList(node, space, i => {
+            let nStr = String(start + i);
+            return nStr + '. ' + ' '.repeat(maxW - nStr.length);
+          });
+        },
+        list_item: (state, node) => {
+          state.renderContent(node);
+        },
+        paragraph: (state, node) => {
+          state.renderInline(node);
+          state.closeBlock(node);
+        },
+        hard_break: state => {
+          state.write('\\\n');
+        },
       },
-      code_block: (state, node) => {
-        state.write("```\n");
-        state.text(node.textContent);
-        state.write("\n```");
-        state.closeBlock(node);
-      },
-      heading: (state, node) => {
-        state.write("#".repeat(node.attrs.level) + " ");
-        state.renderInline(node);
-        state.closeBlock(node);
-      },
-      horizontal_rule: (state, node) => {
-        state.write("---");
-        state.closeBlock(node);
-      },
-      bullet_list: (state, node) => {
-        state.renderList(node, "  ", () => "* ");
-      },
-      ordered_list: (state, node) => {
-        let start = node.attrs.order || 1;
-        let maxW = String(start + node.childCount - 1).length;
-        let space = " ".repeat(maxW + 2);
-        state.renderList(node, space, i => {
-          let nStr = String(start + i);
-          return nStr + ". " + " ".repeat(maxW - nStr.length);
-        });
-      },
-      list_item: (state, node) => {
-        state.renderContent(node);
-      },
-      paragraph: (state, node) => {
-        state.renderInline(node);
-        state.closeBlock(node);
-      },
-      hard_break: (state) => {
-        state.write("\\\n");
-      },
-    }, {
-      em: { open: "*", close: "*" },
-      strong: { open: "**", close: "**" },
-      code: { open: "`", close: "`" },
-    });
-    
+      {
+        em: { open: '*', close: '*' },
+        strong: { open: '**', close: '**' },
+        code: { open: '`', close: '`' },
+      }
+    );
+
     return serializer.serialize(doc);
   }
 }
@@ -113,20 +125,27 @@ export class MessageMarkdownSerializer {
 export class ArticleMarkdownTransformer {
   constructor(schema) {
     this.schema = schema;
-    this.parser = new MarkdownParser(schema, {
-      blockquote: { block: "blockquote" },
-      paragraph: { block: "paragraph" },
-      list_item: { block: "list_item" },
-      bullet_list: { block: "bullet_list" },
-      ordered_list: { block: "ordered_list" },
-      heading: { block: "heading", getAttrs: token => ({ level: +token.attrGet("level") || 1 }) },
-      code_block: { block: "code_block" },
-      hard_break: { node: "hard_break" },
-    }, {
-      em: { mark: "em" },
-      strong: { mark: "strong" },
-      code: { mark: "code" },
-    });
+    this.parser = new MarkdownParser(
+      schema,
+      {
+        blockquote: { block: 'blockquote' },
+        paragraph: { block: 'paragraph' },
+        list_item: { block: 'list_item' },
+        bullet_list: { block: 'bullet_list' },
+        ordered_list: { block: 'ordered_list' },
+        heading: {
+          block: 'heading',
+          getAttrs: token => ({ level: +token.attrGet('level') || 1 }),
+        },
+        code_block: { block: 'code_block' },
+        hard_break: { node: 'hard_break' },
+      },
+      {
+        em: { mark: 'em' },
+        strong: { mark: 'strong' },
+        code: { mark: 'code' },
+      }
+    );
   }
 
   parse(markdown) {
@@ -141,12 +160,12 @@ export const ArticleMarkdownSerializer = MessageMarkdownSerializer;
 export function createEditor(place, options = {}) {
   const state = EditorState.create({
     schema: options.schema || basicSchema,
-    plugins: options.plugins || []
+    plugins: options.plugins || [],
   });
-  
+
   return new EditorView(place, {
     state,
-    ...options
+    ...options,
   });
 }
 
@@ -157,21 +176,21 @@ export const buildEditor = createEditor;
 export const imagePastePlugin = new Plugin({
   key: new PluginKey('imagePaste'),
   props: {
-    handlePaste(view, event, slice) {
+    handlePaste() {
       // Basic image paste handling
       return false;
-    }
-  }
+    },
+  },
 });
 
-// Mentions plugin stub  
+// Mentions plugin stub
 export const mentionsPlugin = {
   plugin: new Plugin({
     key: new PluginKey('mentions'),
     props: {
-      handleKeyDown(view, event) {
+      handleKeyDown() {
         return false;
-      }
-    }
-  })
-}; 
+      },
+    },
+  }),
+};
