@@ -12,30 +12,31 @@ export RAILS_ENV="${RAILS_ENV:-production}"
 
 echo "=== Iniciando aplicação em modo $RAILS_ENV ==="
 
-# Verificar se banco está acessível
+# Verificar se banco está acessível usando pg_isready
 echo "=== Verificando conexão com banco de dados ==="
-until bundle exec rails runner "ActiveRecord::Base.connection.execute('SELECT 1')" >/dev/null 2>&1; do
-  echo "Aguardando conexão com banco de dados..."
-  sleep 3
-done
-echo "✅ Banco de dados está acessível!"
+if [ -n "$DATABASE_URL" ]; then
+  # Extrair host e porta da DATABASE_URL
+  DB_HOST=$(echo $DATABASE_URL | sed -n 's/.*@\([^:]*\):.*/\1/p')
+  DB_PORT=$(echo $DATABASE_URL | sed -n 's/.*:\([0-9]*\)\/.*/\1/p')
+  
+  echo "Tentando conectar ao PostgreSQL em $DB_HOST:$DB_PORT..."
+  until pg_isready -h "$DB_HOST" -p "$DB_PORT" >/dev/null 2>&1; do
+    echo "Aguardando PostgreSQL estar disponível..."
+    sleep 3
+  done
+  echo "✅ PostgreSQL está acessível!"
+else
+  echo "⚠️ DATABASE_URL não configurada, pulando verificação"
+fi
 
 # Executar migrações com debugging
 echo "=== Executando migrações e preparação do banco ==="
-echo "Listando migrações pendentes:"
-bundle exec rake db:migrate:status || echo "Erro ao listar migrações"
 
 echo "Criando banco se necessário:"
 bundle exec rake db:create || echo "Banco já existe ou erro na criação"
 
 echo "Executando migrações:"
 bundle exec rake db:migrate || echo "Erro nas migrações"
-
-echo "Executando db:prepare:"
-bundle exec rake db:prepare || echo "Erro no db:prepare"
-
-echo "Verificando tabelas criadas:"
-bundle exec rails runner "puts ActiveRecord::Base.connection.tables" || echo "Erro ao listar tabelas"
 
 echo "=== Migrações concluídas! ==="
 
