@@ -10,11 +10,35 @@ mkdir -p /app/log /app/tmp/pids
 # Configurar ambiente de produção
 export RAILS_ENV="${RAILS_ENV:-production}"
 
-echo "Iniciando aplicação em modo $RAILS_ENV..."
+echo "=== Iniciando aplicação em modo $RAILS_ENV ==="
 
-# Sempre executar migrações e preparar banco
-echo "Executando migrações e preparação do banco..."
-bundle exec rake db:prepare || echo "Erro nas migrações, continuando..."
+# Verificar se banco está acessível
+echo "=== Verificando conexão com banco de dados ==="
+until bundle exec rails runner "ActiveRecord::Base.connection.execute('SELECT 1')" >/dev/null 2>&1; do
+  echo "Aguardando conexão com banco de dados..."
+  sleep 3
+done
+echo "✅ Banco de dados está acessível!"
+
+# Executar migrações com debugging
+echo "=== Executando migrações e preparação do banco ==="
+echo "Listando migrações pendentes:"
+bundle exec rake db:migrate:status || echo "Erro ao listar migrações"
+
+echo "Criando banco se necessário:"
+bundle exec rake db:create || echo "Banco já existe ou erro na criação"
+
+echo "Executando migrações:"
+bundle exec rake db:migrate || echo "Erro nas migrações"
+
+echo "Executando db:prepare:"
+bundle exec rake db:prepare || echo "Erro no db:prepare"
+
+echo "Verificando tabelas criadas:"
+bundle exec rails runner "puts ActiveRecord::Base.connection.tables" || echo "Erro ao listar tabelas"
+
+echo "=== Migrações concluídas! ==="
 
 # Executa o comando passado
+echo "=== Iniciando comando: $@ ==="
 exec "$@" 
