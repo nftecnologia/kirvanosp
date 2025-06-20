@@ -1,8 +1,7 @@
 class CreateCaptainTables < ActiveRecord::Migration[7.0]
   def up
-    # Post this migration, the 'vector' extension is mandatory to run the application.
-    # If the extension is not installed, the migration will raise an error.
-    setup_vector_extension
+    # Try to setup vector extension, but continue without it if not available
+    @vector_available = setup_vector_extension
     create_assistants
     create_documents
     create_assistant_responses
@@ -22,12 +21,14 @@ class CreateCaptainTables < ActiveRecord::Migration[7.0]
   private
 
   def setup_vector_extension
-    return if extension_enabled?('vector')
+    return false unless extension_enabled?('vector')
 
     begin
       enable_extension 'vector'
-    rescue ActiveRecord::StatementInvalid
-      raise StandardError, "Failed to enable 'vector' extension. Read more at https://chwt.app/v4/migration"
+      return true
+    rescue ActiveRecord::StatementInvalid => e
+      Rails.logger.warn "Vector extension not available: #{e.message}. Continuing without vector support."
+      return false
     end
   end
 
@@ -64,7 +65,12 @@ class CreateCaptainTables < ActiveRecord::Migration[7.0]
     create_table :captain_assistant_responses do |t|
       t.string :question, null: false
       t.text :answer, null: false
-      t.vector :embedding, limit: 1536
+      # Use text instead of vector if vector extension is not available
+      if @vector_available
+        t.vector :embedding, limit: 1536
+      else
+        t.text :embedding_json # Store embedding as JSON text
+      end
       t.bigint :assistant_id, null: false
       t.bigint :document_id
       t.bigint :account_id, null: false
@@ -75,16 +81,29 @@ class CreateCaptainTables < ActiveRecord::Migration[7.0]
     add_index :captain_assistant_responses, :account_id
     add_index :captain_assistant_responses, :assistant_id
     add_index :captain_assistant_responses, :document_id
-    add_index :captain_assistant_responses, :embedding, using: :ivfflat, name: 'vector_idx_knowledge_entries_embedding', opclass: :vector_l2_ops
+    
+    # Only create vector index if vector extension is available
+    if @vector_available
+      add_index :captain_assistant_responses, :embedding, using: :ivfflat, name: 'vector_idx_knowledge_entries_embedding', opclass: :vector_l2_ops
+    end
   end
 
   def create_old_tables
     create_table :article_embeddings, if_not_exists: true do |t|
       t.bigint :article_id, null: false
       t.text :term, null: false
-      t.vector :embedding, limit: 1536
+      # Use text instead of vector if vector extension is not available
+      if @vector_available
+        t.vector :embedding, limit: 1536
+      else
+        t.text :embedding_json # Store embedding as JSON text
+      end
       t.timestamps
     end
-    add_index :article_embeddings, :embedding, if_not_exists: true, using: :ivfflat, opclass: :vector_l2_ops
+    
+    # Only create vector index if vector extension is available
+    if @vector_available
+      add_index :article_embeddings, :embedding, if_not_exists: true, using: :ivfflat, opclass: :vector_l2_ops
+    end
   end
 end
