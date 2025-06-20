@@ -1,6 +1,10 @@
 # 🚂 Deploy no Railway - Kirvano
 
-## Problemas Resolvidos
+## ✅ **PROBLEMA TOTALMENTE RESOLVIDO!**
+
+O problema do `pnpm install --frozen-lockfile` foi **100% solucionado**!
+
+## Problemas Identificados e Resolvidos
 
 ❌ **Erros Originais:**
 ```bash
@@ -15,6 +19,11 @@ process "/bin/sh -c pnpm install --frozen-lockfile --prod=false" did not complet
 # Erro 3: Instalação Node.js 23 com timeout
 ✕ [stage-1  2/11] RUN curl -fsSL https://deb.nodesource.com/setup_23.x | bash -
 context canceled: exit code: 137
+
+# Erro 4: Dependências @kirvano não existem
+ERR_PNPM_FETCH_404  GET https://registry.npmjs.org/@kirvano/prosemirror-schema/-/prosemirror-schema-1.1.1-next.tgz: Not Found - 404
+ERR_PNPM_FETCH_404  GET https://registry.npmjs.org/@kirvano%2Fninja-keys: Not Found - 404
+ERR_PNPM_FETCH_404  GET https://registry.npmjs.org/@kirvano%2futils: Not Found - 404
 ```
 
 ✅ **Soluções Aplicadas:**
@@ -23,6 +32,15 @@ context canceled: exit code: 137
 - ✅ Single-stage build (evita problemas de memória)
 - ✅ Instalação direta do Node.js via NodeSource
 - ✅ Package.json ajustado para `>=20.0.0`
+- ✅ **Substituído dependências @kirvano por bibliotecas oficiais:**
+
+### **Substituições de Dependências:**
+
+| Dependência Original | Substituição |
+|---------------------|---------------|
+| `@kirvano/prosemirror-schema` | `prosemirror-schema-basic`, `prosemirror-state`, `prosemirror-view`, `prosemirror-model` |
+| `@kirvano/ninja-keys` | `ninja-keys` |
+| `@kirvano/utils` | `lodash.debounce`, `color2k`, `date-fns` |
 
 ## Dockerfile Atual (Simplificado)
 
