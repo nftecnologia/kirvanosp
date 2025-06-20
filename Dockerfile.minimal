@@ -1,0 +1,33 @@
+# Dockerfile alternativo ultra-simples
+FROM cimg/ruby:3.4.4-node
+
+USER root
+
+# Instalar dependências básicas
+RUN apt-get update && apt-get install -y \
+    libpq-dev \
+    postgresql-client \
+    libvips \
+    && rm -rf /var/lib/apt/lists/*
+
+# Habilitar pnpm
+RUN corepack enable
+
+WORKDIR /app
+
+# Copiar e instalar dependências
+COPY Gemfile Gemfile.lock ./
+RUN bundle install
+
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
+
+# Copiar aplicação
+COPY . .
+
+# Precompilar assets
+RUN RAILS_ENV=production SECRET_KEY_BASE=dummy bundle exec rake assets:precompile
+
+EXPOSE 3000
+
+CMD ["bundle", "exec", "puma", "-C", "config/puma.rb"] 

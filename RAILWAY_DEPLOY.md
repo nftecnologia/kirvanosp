@@ -1,17 +1,54 @@
 # 🚂 Deploy no Railway - Kirvano
 
-## Problema Resolvido
+## Problemas Resolvidos
 
-❌ **Erro Original:**
-```
+❌ **Erros Originais:**
+```bash
+# Erro 1: Package manager incorreto
 ✕ [8/9] RUN yarn install 
 process "/bin/sh -c yarn install" did not complete successfully: exit code: 1
+
+# Erro 2: Node.js 23 + Multi-stage build
+✕ [node_builder 5/5] RUN pnpm install --frozen-lockfile --prod=false 
+process "/bin/sh -c pnpm install --frozen-lockfile --prod=false" did not complete successfully: exit code: 1
+
+# Erro 3: Instalação Node.js 23 com timeout
+✕ [stage-1  2/11] RUN curl -fsSL https://deb.nodesource.com/setup_23.x | bash -
+context canceled: exit code: 137
 ```
 
-✅ **Solução Aplicada:**
-- Corrigido package manager de `yarn` para `pnpm`
-- Atualizado Node.js para versão 23.x (conforme especificado no projeto)
-- Adicionado multi-stage build para otimizar o processo
+✅ **Soluções Aplicadas:**
+- ✅ Corrigido de `yarn` para `pnpm`
+- ✅ Downgrade de Node.js 23.x para 20.x LTS (mais estável)
+- ✅ Single-stage build (evita problemas de memória)
+- ✅ Instalação direta do Node.js via NodeSource
+- ✅ Package.json ajustado para `>=20.0.0`
+
+## Dockerfile Atual (Simplificado)
+
+```dockerfile
+FROM ruby:3.4.4
+
+# Instalar Node.js 20 e dependências
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+    apt-get install -y nodejs && \
+    apt-get install -y --no-install-recommends \
+    build-essential libpq-dev postgresql-client libvips \
+    && corepack enable && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Instalar gems e dependências Node.js
+COPY Gemfile Gemfile.lock ./
+RUN bundle install
+
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
+
+# Copiar aplicação e precompilar
+COPY . .
+RUN RAILS_ENV=production SECRET_KEY_BASE=dummy bundle exec rake assets:precompile
+```
 
 ## Configuração do Railway
 
@@ -66,40 +103,42 @@ RAILS_LOG_TO_STDOUT=true
    railway up
    ```
 
-## Arquivos de Configuração
+## Dockerfile Alternativo (Se ainda houver problemas)
 
-### `Dockerfile`
-- Multi-stage build com Node.js 23 e Ruby 3.4.4
-- Instalação correta do pnpm
-- Precompilação de assets
-- Script de inicialização com health checks
+Se o Dockerfile principal ainda tiver problemas, use o `Dockerfile.minimal`:
 
-### `railway.yml`
-- Configuração dos serviços web e worker
-- Variáveis de ambiente padrão
-- Comandos de start específicos
+```bash
+# No Railway, configure para usar:
+# Build Command: docker build -f Dockerfile.minimal .
+```
 
-### `bin/docker-entrypoint`
-- Script de inicialização com health checks
-- Aguarda disponibilidade do banco
-- Executa migrações automaticamente
+O `Dockerfile.minimal` usa a imagem `cimg/ruby:3.4.4-node` que já tem Ruby + Node.js pré-instalados.
 
 ## Troubleshooting
 
-### Build Fails
-1. Verifique se todas as variáveis estão configuradas
-2. Confirme que o PostgreSQL está disponível
-3. Verifique logs do build: `railway logs --service=web`
+### Build ainda falha com Node.js 20
+1. Use o `Dockerfile.minimal` em vez do principal
+2. Configure no Railway: `Build Command: docker build -f Dockerfile.minimal .`
 
-### Worker não inicia
-1. Confirme que Redis está configurado
-2. Verifique REDIS_URL
-3. Logs do worker: `railway logs --service=worker`
+### Problemas com pnpm
+1. Verifique se `pnpm-lock.yaml` está no repositório
+2. Tente regenerar: `rm pnpm-lock.yaml && pnpm install`
+3. Commit e push das mudanças
+
+### Timeout na instalação
+1. Railway tem limite de tempo de build
+2. Use Dockerfile.minimal (mais rápido)
+3. Considere remover devDependencies do build de produção
 
 ### Assets não carregam
 1. Confirme `RAILS_SERVE_STATIC_FILES=true`
 2. Verifique se assets foram precompilados
 3. Confirme RAILS_MASTER_KEY
+
+### Worker não inicia
+1. Confirme que Redis está configurado
+2. Verifique REDIS_URL
+3. Logs do worker: `railway logs --service=worker`
 
 ## Comandos Úteis
 
@@ -116,14 +155,38 @@ railway up --service=worker
 
 # Status dos serviços
 railway status
+
+# Rebuild completo
+railway up --detach
 ```
 
-## Stack Technique
+## Stack Técnico Final
 
 - **Ruby:** 3.4.4
-- **Node.js:** 23.x
-- **Package Manager:** pnpm 10.x
+- **Node.js:** 20.x LTS (estável)
+- **Package Manager:** pnpm >= 9.0.0
 - **Database:** PostgreSQL
 - **Background Jobs:** Sidekiq + Redis
 - **Web Server:** Puma
-- **Assets:** Vite + Rails Asset Pipeline 
+- **Assets:** Vite + Rails Asset Pipeline
+- **Deploy:** Railway
+
+## Mudanças Aplicadas
+
+### package.json
+```json
+{
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  }
+}
+```
+
+### Dockerfile
+- Single-stage build (mais simples)
+- Node.js 20.x LTS
+- Instalação otimizada de dependências
+- Precompilação de assets com SECRET_KEY_BASE dummy
+
+O deploy no Railway agora deve funcionar perfeitamente! 🚂✨ 
