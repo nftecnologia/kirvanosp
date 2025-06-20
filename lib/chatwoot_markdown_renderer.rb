@@ -30,3 +30,6 @@ class KirvanoMarkdownRenderer
     # rubocop:enable Rails/OutputSafety
   end
 end
+
+# Alias for Zeitwerk compatibility - expects ChatwootMarkdownRenderer based on filename
+ChatwootMarkdownRenderer = KirvanoMarkdownRenderer

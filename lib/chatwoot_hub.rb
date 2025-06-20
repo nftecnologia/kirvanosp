@@ -114,3 +114,6 @@ class KirvanoHub
     KirvanoExceptionTracker.new(e).capture_exception
   end
 end
+
+# Alias for Zeitwerk compatibility - expects ChatwootHub based on filename
+ChatwootHub = KirvanoHub

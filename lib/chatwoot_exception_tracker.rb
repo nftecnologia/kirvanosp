@@ -30,3 +30,6 @@ class KirvanoExceptionTracker
     end
   end
 end
+
+# Alias for Zeitwerk compatibility - expects ChatwootExceptionTracker based on filename
+ChatwootExceptionTracker = KirvanoExceptionTracker

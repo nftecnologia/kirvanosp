@@ -23,3 +23,6 @@ class KirvanoCaptcha
     response.parsed_response['success']
   end
 end
+
+# Alias for Zeitwerk compatibility - expects ChatwootCaptcha based on filename
+ChatwootCaptcha = KirvanoCaptcha
