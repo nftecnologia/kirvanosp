@@ -39,3 +39,6 @@ module KirvanoApp
     end
   end
 end
+
+# Alias for Zeitwerk compatibility - expects ChatwootApp based on filename
+ChatwootApp = KirvanoApp
