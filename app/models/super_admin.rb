@@ -40,3 +40,5 @@
 #
 class SuperAdmin < User
 end
+
+SuperAdmin.include_mod_with('Audit::User')
