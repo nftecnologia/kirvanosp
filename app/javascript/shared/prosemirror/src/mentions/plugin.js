@@ -34,4 +34,10 @@ export const mentionsPlugin = new Plugin({
   }
 });
 
-export { mentionPluginKey }; 
+export { mentionPluginKey };
+
+// Export suggestionsPlugin as alias for mentionsPlugin
+export const suggestionsPlugin = mentionsPlugin;
+
+// Export trigger characters for mentions
+export const triggerCharacters = ['@']; 

@@ -79,6 +79,7 @@
     "mitt": "^3.0.1",
     "ninja-keys": "^1.2.2",
     "opus-recorder": "^8.0.5",
+    "prosemirror-markdown": "^1.13.0",
     "prosemirror-model": "^1.22.3",
     "prosemirror-schema-basic": "^1.2.4",
     "prosemirror-state": "^1.4.3",

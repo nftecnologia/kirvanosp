@@ -6,7 +6,7 @@
 @import 'tailwindcss/components';
 @import 'tailwindcss/utilities';
 @import 'shared/assets/fonts/widget_fonts';
-@import 'views/conversation';
+// Temporarily disabled: @import './views/_conversation';
 
 html,
 body {

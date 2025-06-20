@@ -50,6 +50,25 @@ export function replaceVariablesInMessage(message, variables = {}) {
   });
 }
 
+export function getMessageVariables(message) {
+  if (!message || typeof message !== 'string') return [];
+  
+  const variablePattern = /\{\{\s*(\w+)\s*\}\}/g;
+  const variables = [];
+  let match;
+  
+  while ((match = variablePattern.exec(message)) !== null) {
+    variables.push(match[1]);
+  }
+  
+  return [...new Set(variables)]; // Remove duplicates
+}
+
+export function getUndefinedVariablesInMessage(message, variables = {}) {
+  const messageVariables = getMessageVariables(message);
+  return messageVariables.filter(variable => !(variable in variables));
+}
+
 export function trimContent(content) {
   if (!content) return '';
   return content.trim();
@@ -179,4 +198,31 @@ export function createImageZoom(imageElement, options = {}) {
       imageElement.style.transform = 'scale(1)';
     }
   };
+}
+
+export function calculateCenterOffset(containerRect, imageRect, scale = 1) {
+  const centerX = containerRect.width / 2;
+  const centerY = containerRect.height / 2;
+  
+  const scaledWidth = imageRect.width * scale;
+  const scaledHeight = imageRect.height * scale;
+  
+  return {
+    x: centerX - (scaledWidth / 2),
+    y: centerY - (scaledHeight / 2)
+  };
+}
+
+export function applyRotationTransform(element, rotation = 0, scale = 1) {
+  if (!element) return;
+  
+  const transform = `rotate(${rotation}deg) scale(${scale})`;
+  element.style.transform = transform;
+  element.style.transformOrigin = 'center center';
+}
+
+export function normalizeToPercentage(value, min = 0, max = 100) {
+  if (value < min) return min;
+  if (value > max) return max;
+  return Math.round((value / max) * 100);
 } 
