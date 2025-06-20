@@ -4,21 +4,12 @@ set -e
 # Remove um PID file pré-existente do servidor.
 rm -f /app/tmp/pids/server.pid
 
-# Aguarda o banco de dados estar disponível usando DATABASE_URL
-if [ -n "$DATABASE_URL" ]; then
-  echo "Aguardando o banco de dados..."
-  until bundle exec rails runner "ActiveRecord::Base.connection.execute('SELECT 1')" >/dev/null 2>&1
-  do
-    echo "Aguardando conexão com o banco de dados..."
-    sleep 2
-  done
-  echo "Banco de dados disponível!"
-fi
+echo "Iniciando aplicação..."
 
 # Executa migrações se for o serviço web
 if [ "$1" = "web" ]; then
   echo "Executando migrações..."
-  bundle exec rake db:migrate
+  bundle exec rake db:create db:migrate || echo "Erro nas migrações, continuando..."
 fi
 
 # Executa o comando passado
