@@ -1,4 +1,5 @@
 // Re-exports from official ProseMirror packages to replace @kirvano/prosemirror-schema
+import { schema as basicSchema } from 'prosemirror-schema-basic';
 export { schema } from 'prosemirror-schema-basic';
 export { 
   EditorState,
@@ -24,10 +25,10 @@ export {
 export { MarkdownParser, MarkdownSerializer } from 'prosemirror-markdown';
 
 // Export messageSchema as alias for basic schema
-export const messageSchema = schema;
+export const messageSchema = basicSchema;
 
 // Export fullSchema as alias for basic schema
-export const fullSchema = schema;
+export const fullSchema = basicSchema;
 
 // Basic markdown transformer implementation
 export class MessageMarkdownTransformer {
@@ -139,7 +140,7 @@ export const ArticleMarkdownSerializer = MessageMarkdownSerializer;
 // Common utilities that might have been in the @kirvano package
 export function createEditor(place, options = {}) {
   const state = EditorState.create({
-    schema: options.schema || schema,
+    schema: options.schema || basicSchema,
     plugins: options.plugins || []
   });
   
