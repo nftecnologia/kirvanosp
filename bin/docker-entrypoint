@@ -4,7 +4,13 @@ set -e
 # Remove um PID file pré-existente do servidor.
 rm -f /app/tmp/pids/server.pid
 
-echo "Iniciando aplicação..."
+# Criar diretórios necessários
+mkdir -p /app/log /app/tmp/pids
+
+# Configurar ambiente de produção
+export RAILS_ENV="${RAILS_ENV:-production}"
+
+echo "Iniciando aplicação em modo $RAILS_ENV..."
 
 # Executa migrações se for o serviço web
 if [ "$1" = "web" ]; then
