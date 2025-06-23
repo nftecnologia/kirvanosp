@@ -2,16 +2,12 @@
 #
 # Table name: article_embeddings
 #
-#  id         :bigint           not null, primary key
-#  embedding  :vector(1536)
-#  term       :text             not null
-#  created_at :datetime         not null
-#  updated_at :datetime         not null
-#  article_id :bigint           not null
-#
-# Indexes
-#
-#  index_article_embeddings_on_embedding  (embedding) USING ivfflat
+#  id             :bigint           not null, primary key
+#  embedding_json :text
+#  term           :text             not null
+#  created_at     :datetime         not null
+#  updated_at     :datetime         not null
+#  article_id     :bigint           not null
 #
 class ArticleEmbedding < ApplicationRecord
   belongs_to :article

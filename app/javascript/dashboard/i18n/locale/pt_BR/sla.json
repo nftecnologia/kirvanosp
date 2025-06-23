@@ -4,7 +4,7 @@
     "ADD_ACTION": "Adicionar SLA",
     "ADD_ACTION_LONG": "Criar uma nova Política de SLA",
     "DESCRIPTION": "Acordo de Nível de Serviço (SLAs em inglês) são acordos que definem expectativas claras entre seu time e os clientes. Estabelecem normas para tempos de resposta e de resolução, criando um quadro de responsabilização e garantindo uma experiência coerente e de qualidade.",
-    "LEARN_MORE": "Saiba mais sobre SLA",
+    "LEARN_MORE": "Configure seus SLAs",
     "LOADING": "Buscando SLAs",
     "PAYWALL": {
       "TITLE": "Atualize para criar SLAs",

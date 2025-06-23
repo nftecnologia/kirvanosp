@@ -120,7 +120,7 @@
           "CONDITION_TWO": "Enviar alertas a cada 30 segundos até que todas as conversas atribuídas sejam lidas"
         },
         "SOUND_PERMISSION_ERROR": "A reprodução automática está desativada no seu navegador. Para ouvir alertas automaticamente, habilite a permissão de som nas configurações do seu navegador ou interaja com a página.",
-        "READ_MORE": "Saiba mais"
+        "READ_MORE": "Mais informações"
       },
       "EMAIL_NOTIFICATIONS_SECTION": {
         "TITLE": "Notificações por e-mail",
@@ -287,10 +287,10 @@
     "SETTINGS": "Configurações",
     "CONTACTS": "Contatos",
     "ACTIVE": "Ativo",
-    "CAPTAIN": "Capitão",
-    "CAPTAIN_ASSISTANTS": "Assistentes",
-    "CAPTAIN_DOCUMENTS": "Documentos",
-    "CAPTAIN_RESPONSES": "FAQs",
+    "CAPTAIN": "Agente IA",
+    "CAPTAIN_ASSISTANTS": "Assistentes IA",
+    "CAPTAIN_DOCUMENTS": "Documentos IA",
+    "CAPTAIN_RESPONSES": "Respostas IA",
     "HOME": "Principal",
     "AGENTS": "Agentes",
     "AGENT_BOTS": "Robôs",
@@ -332,7 +332,7 @@
     "SET_YOUR_AVAILABILITY": "Disponibilidade",
     "SLA": "SLA",
     "CUSTOM_ROLES": "Funções Personalizadas",
-    "BETA": "Beta",
+    "BETA": "Beta"
     "REPORTS_OVERVIEW": "Visão geral",
     "REAUTHORIZE": "A conexão com a sua caixa de entrada expirou. Por favor, reconecte para continuar recebendo e enviando mensagens",
     "HELP_CENTER": {
@@ -366,12 +366,12 @@
       "BUTTON_TXT": "Ir para o portal de cobrança"
     },
     "CAPTAIN": {
-      "TITLE": "Capitão",
-      "DESCRIPTION": "Gerenciar uso e créditos para o Captain AI.",
+      "TITLE": "Agente IA",
+      "DESCRIPTION": "Gerenciar uso e créditos para o Agente IA.",
       "BUTTON_TXT": "Comprar mais créditos",
       "DOCUMENTS": "Documentos",
       "RESPONSES": "Respostas",
-      "UPGRADE": "O capitão não está disponível no plano gratuito, faça o upgrade para ter acesso aos assistentes, co-piloto e muito mais."
+      "UPGRADE": "O Agente IA não está disponível no plano gratuito, faça o upgrade para ter acesso aos assistentes, co-piloto e muito mais."
     },
     "CHAT_WITH_US": {
       "TITLE": "Precisa de ajuda?",

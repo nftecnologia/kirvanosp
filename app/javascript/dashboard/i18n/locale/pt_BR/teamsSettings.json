@@ -4,7 +4,7 @@
     "HEADER": "Times",
     "LOADING": "Buscando times",
     "DESCRIPTION": "Os times permitem que você organize agentes em grupos com base em suas responsabilidades. Um agente pode pertencer a vários times. Ao trabalhar de forma colaborativa, você pode atribuir conversas a times específicos.",
-    "LEARN_MORE": "Saiba mais sobre times",
+    "LEARN_MORE": "Configure seus times",
     "LIST": {
       "404": "Não existem agentes associados a esta conta.",
       "EDIT_TEAM": "Editar time",

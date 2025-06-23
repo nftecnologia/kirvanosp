@@ -60,7 +60,7 @@
     "NO_RESPONSE": "Sem resposta",
     "RESPONSE": "Resposta",
     "RATING_TITLE": "Classificação",
-    "FEEDBACK_TITLE": "Feedback",
+    "FEEDBACK_TITLE": "Comentários",
     "REPLY_MESSAGE_NOT_FOUND": "Mensagem não disponível",
     "CARD": {
       "SHOW_LABELS": "Mostrar etiquetas",
@@ -170,7 +170,7 @@
       "PRIVATE_NOTE": "Mensagem Privada",
       "SEND": "Enviar",
       "CREATE": "Enviar",
-      "INSERT_READ_MORE": "Saiba mais",
+      "INSERT_READ_MORE": "Ver mais",
       "DISMISS_REPLY": "Dispensar resposta",
       "REPLYING_TO": "Respondendo a:",
       "TIP_FORMAT_ICON": "Mostrar editor de texto completo",
@@ -312,22 +312,22 @@
       "SHOPIFY_ORDERS": "Shopify Orders"
     },
     "SHOPIFY": {
-      "ORDER_ID": "Order #{id}",
-      "ERROR": "Error loading orders",
-      "NO_SHOPIFY_ORDERS": "No orders found",
+      "ORDER_ID": "Pedido #{id}",
+      "ERROR": "Erro ao carregar pedidos",
+      "NO_SHOPIFY_ORDERS": "Nenhum pedido encontrado",
       "FINANCIAL_STATUS": {
         "PENDING": "Pendentes",
-        "AUTHORIZED": "Authorized",
-        "PARTIALLY_PAID": "Partially Paid",
-        "PAID": "Paid",
-        "PARTIALLY_REFUNDED": "Partially Refunded",
-        "REFUNDED": "Refunded",
-        "VOIDED": "Voided"
+        "AUTHORIZED": "Autorizado",
+        "PARTIALLY_PAID": "Parcialmente Pago",
+        "PAID": "Pago",
+        "PARTIALLY_REFUNDED": "Parcialmente Reembolsado",
+        "REFUNDED": "Reembolsado",
+        "VOIDED": "Cancelado"
       },
       "FULFILLMENT_STATUS": {
-        "FULFILLED": "Fulfilled",
-        "PARTIALLY_FULFILLED": "Partially Fulfilled",
-        "UNFULFILLED": "Unfulfilled"
+        "FULFILLED": "Entregue",
+        "PARTIALLY_FULFILLED": "Parcialmente Entregue",
+        "UNFULFILLED": "Não Entregue"
       }
     }
   },
