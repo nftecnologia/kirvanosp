@@ -101,16 +101,16 @@
     ],
     "GROUP_BY_YEAR_OPTIONS": [
       {
-        "id": 1,
-        "groupBy": "Dia"
-      },
-      {
         "id": 2,
         "groupBy": "Semana"
       },
       {
         "id": 3,
         "groupBy": "Mês"
+      },
+      {
+        "id": 4,
+        "groupBy": "Ano"
       }
     ],
     "BUSINESS_HOURS": "Horários de funcionamento",
@@ -120,7 +120,7 @@
     },
     "PAGINATION": {
       "RESULTS": "Exibindo {start} — {end} de {total} resultados",
-      "PER_PAGE_TEMPLATE": "{size} / page"
+      "PER_PAGE_TEMPLATE": "{size} / página"
     }
   },
   "AGENT_REPORTS": {
@@ -193,7 +193,7 @@
   },
   "LABEL_REPORTS": {
     "HEADER": "Visão Geral das Etiquetas",
-    "DESCRIPTION": "Track label performance with key metrics including conversations, response times, resolution times, and resolved cases. Click a label name for detailed insights.",
+    "DESCRIPTION": "Acompanhe o desempenho das etiquetas com métricas-chave incluindo conversas, tempos de resposta, tempos de resolução e casos resolvidos. Clique no nome de uma etiqueta para insights detalhados.",
     "LOADING_CHART": "Carregando dados do gráfico...",
     "NO_ENOUGH_DATA": "Não existem dados suficientes para gerar o relatório. Tente novamente mais tarde.",
     "DOWNLOAD_LABEL_REPORTS": "Baixar relatórios de etiquetas",
@@ -563,7 +563,7 @@
     "LABEL": "Nome do campo",
     "AVG_RESOLUTION_TIME": "Tempo Médio de Resolução",
     "AVG_FIRST_RESPONSE_TIME": "Tempo Médio de Primeira Resposta",
-    "AVG_REPLY_TIME": "Tempo Médio de Rspera do Cliente",
+    "AVG_REPLY_TIME": "Tempo Médio de Espera do Cliente",
     "RESOLUTION_COUNT": "Contagem de Resolução",
     "CONVERSATIONS": "Nº de Conversas"
   }

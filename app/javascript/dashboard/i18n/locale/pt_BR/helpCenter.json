@@ -70,16 +70,16 @@
           "SEARCH_PLACEHOLDER": "Pesquisar autor"
         },
         "META_TITLE": {
-          "LABEL": "Meta title",
-          "PLACEHOLDER": "Adicionar um meta title"
+          "LABEL": "Meta título",
+          "PLACEHOLDER": "Adicionar um meta título"
         },
         "META_DESCRIPTION": {
-          "LABEL": "Meta description",
-          "PLACEHOLDER": "Adicione suas meta descriptions para melhorar os resultados de SEO..."
+          "LABEL": "Meta descrição",
+          "PLACEHOLDER": "Adicione suas meta descrições para melhorar os resultados de SEO..."
         },
         "META_TAGS": {
-          "LABEL": "Meta tags",
-          "PLACEHOLDER": "Adicione meta tags separadas por virgula..."
+          "LABEL": "Meta etiquetas",
+          "PLACEHOLDER": "Adicione meta etiquetas separadas por vírgula..."
         }
       },
       "BUTTONS": {
@@ -666,9 +666,9 @@
         "ARTICLE_PROPERTIES": "Propriedades do artigo",
         "META_DESCRIPTION": "Meta descrição",
         "META_DESCRIPTION_PLACEHOLDER": "Adicionar meta descrição",
-        "META_TITLE": "Meta title",
+        "META_TITLE": "Meta título",
         "META_TITLE_PLACEHOLDER": "Adicionar meta título",
-        "META_TAGS": "Meta tags",
+        "META_TAGS": "Meta etiquetas",
         "META_TAGS_PLACEHOLDER": "Adicionar meta tags"
       },
       "API": {
