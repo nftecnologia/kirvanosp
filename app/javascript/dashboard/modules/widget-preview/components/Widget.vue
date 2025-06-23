@@ -180,13 +180,20 @@ export default {
         "
         @click="toggleWidget"
       >
-        <img
+        <svg
           v-if="!isWidgetVisible"
-          src="~dashboard/assets/images/bubble-logo.svg"
-          alt=""
-          draggable="false"
           class="w-6 h-6 mx-auto"
-        />
+          viewBox="0 0 24 24"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M8 12h8m-4-4v8"
+            stroke="white"
+            stroke-width="2"
+            stroke-linecap="round"
+          />
+        </svg>
         <div v-if="isBubbleExpanded" class="ltr:pl-2.5 rtl:pr-2.5">
           {{ getWidgetBubbleLauncherTitle }}
         </div>
