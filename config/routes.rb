@@ -36,6 +36,10 @@ Rails.application.routes.draw do
   get '/health', to: 'api#health'
   namespace :api, defaults: { format: 'json' } do
     namespace :v1 do
+      # Health check and monitoring endpoints
+      get 'status', to: 'monitoring#status'
+      get 'health', to: 'monitoring#health'
+      
       # ----------------------------------
       # start of account scoped api routes
       resources :accounts, only: [:create, :show, :update] do
