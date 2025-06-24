@@ -122,10 +122,10 @@ const handleLocaleAction = value => {
 const handlePageChange = page => emit('pageChange', page);
 
 const navigateToNewArticlePage = () => {
-  const { categorySlug, locale } = route.params;
+  const { portalSlug, categorySlug, locale } = route.params;
   router.push({
     name: 'portals_articles_new',
-    params: { categorySlug, locale },
+    params: { portalSlug, categorySlug, locale },
   });
 };
 </script>
