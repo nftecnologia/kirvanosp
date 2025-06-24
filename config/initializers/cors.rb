@@ -5,7 +5,13 @@
 # Ref: https://stackoverflow.com/questions/56960709/rails-font-cors-policy
 Rails.application.config.middleware.insert_before 0, Rack::Cors do
   allow do
-    origins '*'
+    # Production domains
+    if Rails.env.production?
+      origins 'https://kirvano.com', 'https://app.kirvano.com', 'https://kirvano-web-production.up.railway.app'
+    else
+      origins '*'
+    end
+    
     resource '/packs/*', headers: :any, methods: [:get, :options]
     resource '/audio/*', headers: :any, methods: [:get, :options]
     # Make the public endpoints accessible to the frontend

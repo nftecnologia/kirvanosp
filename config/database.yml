@@ -9,6 +9,14 @@ default: &default
 
 development:
   <<: *default
+  # Performance optimizations for local development
+  timeout: 5000
+  connect_timeout: 2
+  checkout_timeout: 2
+  variables:
+    statement_timeout: <%= ENV.fetch('POSTGRES_STATEMENT_TIMEOUT', '5s') %>
+    lock_timeout: '3s'
+    idle_in_transaction_session_timeout: '10s'
 
 test:
   <<: *default

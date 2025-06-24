@@ -4,7 +4,14 @@ const parseErrorCode = error => Promise.reject(error);
 
 export default axios => {
   const { apiHost = '' } = window.kirvanoConfig || {};
-  const wootApi = axios.create({ baseURL: `${apiHost}/` });
+  const wootApi = axios.create({ 
+    baseURL: `${apiHost}/`,
+    timeout: 15000, // 15 seconds timeout
+    headers: {
+      'Cache-Control': 'no-cache',
+      'Pragma': 'no-cache'
+    }
+  });
   // Add Auth Headers to requests if logged in
   if (Auth.hasAuthCookie()) {
     const {
@@ -22,10 +29,42 @@ export default axios => {
       uid,
     });
   }
+  // Request interceptor for loading states
+  wootApi.interceptors.request.use(
+    config => {
+      // Add request timeout warning for development
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`API Request: ${config.method?.toUpperCase()} ${config.url}`);
+        const timeoutWarning = setTimeout(() => {
+          console.warn(`Slow API request detected: ${config.method?.toUpperCase()} ${config.url} (>5s)`);
+        }, 5000);
+        config.timeoutWarning = timeoutWarning;
+      }
+      return config;
+    },
+    error => Promise.reject(error)
+  );
+
   // Response parsing interceptor
   wootApi.interceptors.response.use(
-    response => response,
-    error => parseErrorCode(error)
+    response => {
+      // Clear timeout warning on success
+      if (process.env.NODE_ENV === 'development' && response.config.timeoutWarning) {
+        clearTimeout(response.config.timeoutWarning);
+      }
+      return response;
+    },
+    error => {
+      // Clear timeout warning on error
+      if (process.env.NODE_ENV === 'development' && error.config?.timeoutWarning) {
+        clearTimeout(error.config.timeoutWarning);
+      }
+      if (error.code === 'ECONNABORTED' && error.message.includes('timeout')) {
+        console.error('API request timed out:', error.config?.url);
+        error.message = 'Request timed out. Please check your connection and try again.';
+      }
+      return parseErrorCode(error);
+    }
   );
   return wootApi;
 };

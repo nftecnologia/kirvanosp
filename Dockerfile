@@ -1,7 +1,7 @@
-# Usar Ruby oficial e instalar Node.js 20 diretamente
-FROM ruby:3.4.4
+# Multi-stage build para otimização
+FROM ruby:3.4.4 AS builder
 
-# Instalar Node.js 20 e dependências
+# Instalar Node.js 20 e dependências de build
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
     apt-get install -y nodejs && \
     apt-get install -y --no-install-recommends \
@@ -17,23 +17,68 @@ WORKDIR /app
 # Instalar bundler
 RUN gem install bundler
 
-# Copiar e instalar gems
+# Copiar e instalar gems (caching layer)
 COPY Gemfile Gemfile.lock ./
-RUN bundle install
+RUN bundle config set --local deployment 'true' && \
+    bundle config set --local without 'development test' && \
+    bundle install && \
+    bundle clean --force
 
-# Copiar package.json e instalar dependências Node
+# Copiar package.json e instalar dependências Node (caching layer)
 COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile --prod=false
 
-# Copiar aplicação
+# Copiar código fonte
 COPY . .
 
-# Copiar script
+# Set production environment for asset compilation
+ENV RAILS_ENV=production
+ENV NODE_ENV=production
+ENV SECRET_KEY_BASE=dummy
+
+# Precompilar assets com otimizações
+RUN bundle exec rake assets:precompile
+
+# Clean up build dependencies and cache
+RUN pnpm prune --prod && \
+    rm -rf node_modules/.cache && \
+    rm -rf /tmp/* && \
+    rm -rf ~/.pnpm-store
+
+# Production stage
+FROM ruby:3.4.4-slim AS production
+
+# Instalar apenas dependências de runtime
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    libpq5 \
+    libvips \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Criar usuário não-root para segurança
+RUN groupadd -r kirvano && useradd -r -g kirvano kirvano
+
+# Copiar gems instalados do builder
+COPY --from=builder /usr/local/bundle /usr/local/bundle
+
+# Copiar aplicação compilada
+COPY --from=builder --chown=kirvano:kirvano /app /app
+
+# Copiar script de entrypoint
 COPY bin/docker-entrypoint /usr/local/bin/
 RUN chmod +x /usr/local/bin/docker-entrypoint
 
-# Precompilar assets
-RUN RAILS_ENV=production SECRET_KEY_BASE=dummy bundle exec rake assets:precompile
+# Configurar variáveis de ambiente de produção
+ENV RAILS_ENV=production
+ENV NODE_ENV=production
+ENV RAILS_SERVE_STATIC_FILES=true
+ENV RAILS_LOG_TO_STDOUT=true
+
+# Usar usuário não-root
+USER kirvano
 
 EXPOSE 3000
 

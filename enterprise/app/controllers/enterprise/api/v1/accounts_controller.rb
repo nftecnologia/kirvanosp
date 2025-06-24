@@ -58,7 +58,16 @@ class Enterprise::Api::V1::AccountsController < Api::BaseController
   private
 
   def check_cloud_env
-    render json: { error: 'Not found' }, status: :not_found unless KirvanoApp.kirvano_cloud?
+    # Safeguard for method loading issues
+    is_cloud = begin
+      KirvanoApp.kirvano_cloud?
+    rescue NoMethodError
+      # Fallback: reload the module if method is missing
+      load 'lib/chatwoot_app.rb'
+      KirvanoApp.kirvano_cloud?
+    end
+    
+    render json: { error: 'Not found' }, status: :not_found unless is_cloud
   end
 
   def default_limits

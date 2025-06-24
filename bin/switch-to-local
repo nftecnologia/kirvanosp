@@ -1,0 +1,69 @@
+#!/bin/bash
+
+# Quick Fix Script: Switch to Local Development Services
+# This script switches from Railway cloud services to local services for faster performance
+
+echo "🚀 Switching to local development services for better performance..."
+
+# Check if Docker is running
+if ! docker info > /dev/null 2>&1; then
+    echo "❌ Docker is not running. Please start Docker first."
+    exit 1
+fi
+
+# Start local services if not already running
+echo "📦 Starting local PostgreSQL and Redis services..."
+docker-compose up -d db redis
+
+# Wait for services to be ready
+echo "⏳ Waiting for services to be ready..."
+sleep 5
+
+# Switch to local configuration
+if [ -f ".env.local" ]; then
+    cp .env .env.railway.backup
+    cp .env.local .env
+    echo "✅ Switched to local configuration"
+else
+    echo "❌ .env.local file not found"
+    exit 1
+fi
+
+# Enable development caching
+touch tmp/caching-dev.txt
+echo "✅ Enabled development caching"
+
+# Check if local PostgreSQL is accessible
+echo "🔍 Testing local database connection..."
+if bundle exec rails runner "ActiveRecord::Base.connection.execute('SELECT 1')" > /dev/null 2>&1; then
+    echo "✅ Local database connection successful"
+else
+    echo "⚠️  Database connection test failed. You may need to create the database:"
+    echo "   bundle exec rails db:create db:migrate"
+fi
+
+# Check if local Redis is accessible
+echo "🔍 Testing local Redis connection..."
+if bundle exec rails runner "Rails.cache.redis.ping" > /dev/null 2>&1; then
+    echo "✅ Local Redis connection successful"
+else
+    echo "⚠️  Redis connection test failed. Check if Redis is running on port 6379"
+fi
+
+echo ""
+echo "🎉 Local development setup complete!"
+echo ""
+echo "Performance optimizations applied:"
+echo "  ✓ Local PostgreSQL (faster than Railway)"
+echo "  ✓ Local Redis (faster than Railway)"
+echo "  ✓ Reduced database timeouts (5s instead of 14s)"
+echo "  ✓ HTTP request timeouts (15s instead of no limit)"
+echo "  ✓ Development caching enabled"
+echo "  ✓ Asset debug mode disabled for faster loading"
+echo ""
+echo "To revert to Railway services, run: bin/switch-to-railway"
+echo ""
+echo "Now restart your Rails server:"
+echo "  pnpm dev"
+echo "  or"
+echo "  overmind start -f ./Procfile.dev"

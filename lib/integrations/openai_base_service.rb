@@ -88,7 +88,7 @@ class Integrations::OpenaiBaseService
     }
 
     Rails.logger.info("OpenAI API request: #{body}")
-    response = HTTParty.post(API_URL, headers: headers, body: body)
+    response = HTTParty.post(API_URL, headers: headers, body: body, timeout: 30)
     Rails.logger.info("OpenAI API response: #{response.body}")
 
     return { error: response.parsed_response, error_code: response.code } unless response.success?

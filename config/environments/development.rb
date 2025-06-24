@@ -18,9 +18,17 @@ Rails.application.configure do
     config.action_controller.perform_caching = true
     config.action_controller.enable_fragment_cache_logging = true
 
-    config.cache_store = :memory_store
+    # Use Redis cache store for better performance in development
+    config.cache_store = :redis_cache_store, {
+      url: ENV['REDIS_URL'],
+      pool: { size: 5, timeout: 5 },
+      connect_timeout: 1,
+      read_timeout: 1,
+      write_timeout: 1,
+      reconnect_attempts: 1
+    }
     config.public_file_server.headers = {
-      'Cache-Control' => "public, max-age=#{2.days.to_i}"
+      'Cache-Control' => "public, max-age=#{1.hour.to_i}"
     }
   else
     config.action_controller.perform_caching = false
@@ -48,7 +56,10 @@ Rails.application.configure do
   # Debug mode disables concatenation and preprocessing of assets.
   # This option may cause significant delays in view rendering with a large
   # number of complex assets.
-  config.assets.debug = true
+  # Disable for better performance in development
+  config.assets.debug = false
+  config.assets.compile = true
+  config.assets.digest = false
 
   # Suppress logger output for asset requests.
   config.assets.quiet = true
@@ -84,5 +95,17 @@ Rails.application.configure do
     Bullet.enable = true
     Bullet.bullet_logger = true
     Bullet.rails_logger = true
+  end
+
+  # Performance optimizations for development
+  # Reduce timeout for faster failure detection
+  config.force_ssl = false
+  
+  # Configure timeout for development (faster detection of hanging requests)
+  if defined?(Rack::Timeout)
+    # Add request timeout middleware
+    config.middleware.insert_before ActionDispatch::ShowExceptions, Rack::Timeout::Middleware
+    Rack::Timeout.timeout = 30  # 30 seconds timeout instead of default 15
+    Rack::Timeout.wait_timeout = 5   # 5 seconds wait timeout
   end
 end

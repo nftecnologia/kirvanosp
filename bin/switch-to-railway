@@ -1,0 +1,33 @@
+#!/bin/bash
+
+# Revert Script: Switch back to Railway cloud services
+
+echo "🚀 Switching back to Railway cloud services..."
+
+# Restore Railway configuration
+if [ -f ".env.railway.backup" ]; then
+    cp .env.railway.backup .env
+    echo "✅ Restored Railway configuration"
+else
+    echo "❌ Railway backup configuration not found"
+    exit 1
+fi
+
+# Disable development caching (Railway services are slower, avoid caching timeouts)
+if [ -f "tmp/caching-dev.txt" ]; then
+    rm tmp/caching-dev.txt
+    echo "✅ Disabled development caching"
+fi
+
+echo ""
+echo "🎉 Railway configuration restored!"
+echo ""
+echo "Configuration restored:"
+echo "  ✓ Railway PostgreSQL database"
+echo "  ✓ Railway Redis"
+echo "  ✓ Development caching disabled"
+echo ""
+echo "You can now restart your Rails server:"
+echo "  pnpm dev"
+echo "  or"
+echo "  overmind start -f ./Procfile.dev"

@@ -9,19 +9,44 @@ services:
     # Comando para o serviço web
     startCommand: bundle exec puma -C config/puma.rb
     
-    # Variáveis de ambiente
+    # Variáveis de ambiente para otimização de produção
     variables:
       RAILS_ENV: production
       NODE_ENV: production
       RAILS_SERVE_STATIC_FILES: true
       RAILS_LOG_TO_STDOUT: true
+      # Asset optimization
+      RAILS_SERVE_STATIC_FILES: true
+      RAILS_ASSETS_COMPRESS: true
+      # Performance tuning
+      WEB_CONCURRENCY: 2
+      MAX_THREADS: 5
+      # Asset CDN configuration (opcional)
+      # ASSET_CDN_HOST: your-cdn-domain.com
     
-    # Configurações de build
+    # Configurações de build otimizadas
     buildCommand: |
+      echo "Preparing database..."
       bundle exec rake db:prepare
+      echo "Build completed successfully!"
     
     # Porta do serviço
     port: 3000
+    
+    # Resource limits para otimização
+    resources:
+      # Adjust based on your plan
+      memory: 1GB
+      cpu: 1
+    
+    # Health check configuration
+    healthcheck:
+      path: /health
+      initialDelaySeconds: 30
+      periodSeconds: 10
+      timeoutSeconds: 5
+      failureThreshold: 3
+      successThreshold: 1
 
   worker:
     # Build da aplicação
@@ -36,5 +61,19 @@ services:
       RAILS_ENV: production
       NODE_ENV: production
       RAILS_LOG_TO_STDOUT: true
+      # Sidekiq optimizations
+      SIDEKIQ_CONCURRENCY: 5
     
-    # Worker não precisa de porta 
+    # Resource limits para worker
+    resources:
+      memory: 512MB
+      cpu: 0.5
+    
+    # Health check for Sidekiq worker
+    healthcheck:
+      command: ["bundle", "exec", "ruby", "-e", "require 'sidekiq/api'; exit(Sidekiq::ProcessSet.new.size > 0 ? 0 : 1)"]
+      initialDelaySeconds: 30
+      periodSeconds: 30
+      timeoutSeconds: 10
+      failureThreshold: 3
+      successThreshold: 1 

@@ -33,6 +33,7 @@ Rails.application.routes.draw do
   end
 
   get '/api', to: 'api#index'
+  get '/health', to: 'api#health'
   namespace :api, defaults: { format: 'json' } do
     namespace :v1 do
       # ----------------------------------
@@ -284,6 +285,18 @@ Rails.application.routes.draw do
       end
       # end of account scoped api routes
       # ----------------------------------
+
+      # Monitoring and health endpoints
+      resources :monitoring, only: [] do
+        collection do
+          get :metrics
+          get :alerts
+          get :database_performance
+          get :article_metrics
+          get :sidekiq_metrics
+          get :uptime_status
+        end
+      end
 
       namespace :integrations do
         resources :webhooks, only: [:create]

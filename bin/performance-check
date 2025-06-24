@@ -1,0 +1,99 @@
+#!/bin/bash
+
+# Performance Diagnostic Script
+# This script helps identify performance bottlenecks
+
+echo "🔍 Running performance diagnostics..."
+echo ""
+
+# Check which configuration is active
+echo "📋 Current Configuration:"
+if grep -q "railway" .env; then
+    echo "  ⚠️  Using Railway cloud services (slower)"
+    echo "  💡 Run 'bin/switch-to-local' for better performance"
+else
+    echo "  ✅ Using local services (faster)"
+fi
+
+# Check if development caching is enabled
+if [ -f "tmp/caching-dev.txt" ]; then
+    echo "  ✅ Development caching enabled"
+else
+    echo "  ⚠️  Development caching disabled"
+    echo "  💡 Run 'touch tmp/caching-dev.txt' to enable caching"
+fi
+
+echo ""
+
+# Check database connection speed
+echo "🐘 Database Connection Test:"
+start_time=$(date +%s.%N)
+if bundle exec rails runner "ActiveRecord::Base.connection.execute('SELECT 1')" > /dev/null 2>&1; then
+    end_time=$(date +%s.%N)
+    duration=$(echo "$end_time - $start_time" | bc)
+    echo "  ✅ Database connected in ${duration}s"
+    if (( $(echo "$duration > 1.0" | bc -l) )); then
+        echo "  ⚠️  Database connection is slow (>1s)"
+        echo "  💡 Consider switching to local database"
+    fi
+else
+    echo "  ❌ Database connection failed"
+fi
+
+echo ""
+
+# Check Redis connection speed
+echo "🔴 Redis Connection Test:"
+start_time=$(date +%s.%N)
+if bundle exec rails runner "Rails.cache.redis.ping" > /dev/null 2>&1; then
+    end_time=$(date +%s.%N)
+    duration=$(echo "$end_time - $start_time" | bc)
+    echo "  ✅ Redis connected in ${duration}s"
+    if (( $(echo "$duration > 0.5" | bc -l) )); then
+        echo "  ⚠️  Redis connection is slow (>0.5s)"
+        echo "  💡 Consider switching to local Redis"
+    fi
+else
+    echo "  ❌ Redis connection failed"
+fi
+
+echo ""
+
+# Check if Docker services are running
+echo "🐳 Docker Services Status:"
+if docker info > /dev/null 2>&1; then
+    if docker-compose ps db redis | grep -q "Up"; then
+        echo "  ✅ Local Docker services are running"
+    else
+        echo "  ⚠️  Local Docker services are not running"
+        echo "  💡 Run 'docker-compose up -d db redis' to start them"
+    fi
+else
+    echo "  ⚠️  Docker is not running"
+fi
+
+echo ""
+
+# Quick Rails boot test
+echo "🚀 Rails Boot Speed Test:"
+start_time=$(date +%s.%N)
+if timeout 30 bundle exec rails runner "puts 'Boot test complete'" > /dev/null 2>&1; then
+    end_time=$(date +%s.%N)
+    duration=$(echo "$end_time - $start_time" | bc)
+    echo "  ✅ Rails booted in ${duration}s"
+    if (( $(echo "$duration > 10.0" | bc -l) )); then
+        echo "  ⚠️  Rails boot is slow (>10s)"
+        echo "  💡 Consider switching to local services"
+    fi
+else
+    echo "  ❌ Rails boot timed out (>30s)"
+    echo "  💡 This indicates a serious performance issue"
+fi
+
+echo ""
+echo "📊 Performance Summary:"
+echo "  For fastest development experience:"
+echo "  1. Run 'bin/switch-to-local' to use local services"
+echo "  2. Ensure Docker is running with 'docker-compose up -d db redis'"
+echo "  3. Enable caching with 'touch tmp/caching-dev.txt'"
+echo "  4. Restart Rails server after changes"

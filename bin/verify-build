@@ -1,0 +1,127 @@
+#!/bin/bash
+
+# Verification script for production build
+set -e
+
+echo "🔍 Verifying production build..."
+echo "=================================="
+
+# Check if required directories exist
+echo "📁 Checking asset directories..."
+if [ ! -d "public/vite/assets" ]; then
+    echo "❌ ERROR: public/vite/assets directory not found"
+    exit 1
+fi
+
+if [ ! -d "public/packs" ]; then
+    echo "❌ ERROR: public/packs directory not found"
+    exit 1
+fi
+
+if [ ! -f "public/packs/js/sdk.js" ]; then
+    echo "❌ ERROR: SDK file not found at public/packs/js/sdk.js"
+    exit 1
+fi
+
+echo "✅ Asset directories exist"
+
+# Check for main entry points
+echo ""
+echo "📦 Checking main entry points..."
+main_entries=("dashboard" "widget" "portal" "survey" "v3app" "superadmin")
+missing_entries=()
+
+for entry in "${main_entries[@]}"; do
+    if ! ls public/vite/assets/${entry}-*.js >/dev/null 2>&1; then
+        missing_entries+=("$entry")
+    fi
+done
+
+if [ ${#missing_entries[@]} -eq 0 ]; then
+    echo "✅ All main entry points found"
+else
+    echo "⚠️  Missing entry points: ${missing_entries[*]}"
+fi
+
+# Check asset compression
+echo ""
+echo "🗜️  Checking asset compression..."
+js_files=$(find public/vite/assets -name "*.js" | wc -l)
+js_gz_files=$(find public/vite/assets -name "*.js.gz" | wc -l)
+css_files=$(find public/vite/assets -name "*.css" | wc -l)
+css_gz_files=$(find public/vite/assets -name "*.css.gz" | wc -l)
+
+echo "JS files: $js_files (compressed: $js_gz_files)"
+echo "CSS files: $css_files (compressed: $css_gz_files)"
+
+if [ $js_gz_files -gt 0 ] || [ $css_gz_files -gt 0 ]; then
+    echo "✅ Asset compression is working"
+else
+    echo "⚠️  No compressed assets found"
+fi
+
+# Check file sizes
+echo ""
+echo "📊 Checking asset sizes..."
+total_size=$(du -sh public/vite/assets | cut -f1)
+echo "Total Vite assets size: $total_size"
+
+# Find large files
+echo ""
+echo "📏 Large assets (>500KB):"
+find public/vite/assets -type f -size +500k -exec ls -lh {} \; | awk '{print $5 " " $9}' || echo "No large assets found"
+
+# Check for source maps in production
+echo ""
+echo "🗺️  Checking for source maps..."
+source_maps=$(find public/vite/assets -name "*.map" | wc -l)
+if [ $source_maps -eq 0 ]; then
+    echo "✅ No source maps found (good for production)"
+else
+    echo "⚠️  Found $source_maps source map files (consider removing for production)"
+fi
+
+# Check fonts
+echo ""
+echo "🔤 Checking fonts..."
+font_files=$(find public/vite/assets -name "*.woff*" -o -name "*.ttf" -o -name "*.eot" | wc -l)
+echo "Font files: $font_files"
+
+# Verify SDK
+echo ""
+echo "🛠️  Verifying SDK..."
+if [ -f "public/packs/js/sdk.js" ]; then
+    sdk_size=$(du -h public/packs/js/sdk.js | cut -f1)
+    echo "SDK size: $sdk_size"
+    
+    # Check if SDK is properly minified (basic check)
+    if grep -q "console.log" public/packs/js/sdk.js; then
+        echo "⚠️  SDK may not be properly minified (contains console.log)"
+    else
+        echo "✅ SDK appears to be minified"
+    fi
+else
+    echo "❌ SDK file not found"
+fi
+
+echo ""
+echo "🎉 Build verification complete!"
+
+# Summary
+echo ""
+echo "📋 Summary:"
+echo "- Asset directories: ✅"
+echo "- Main entries: $([ ${#missing_entries[@]} -eq 0 ] && echo "✅" || echo "⚠️")"
+echo "- Compression: $([ $js_gz_files -gt 0 ] || [ $css_gz_files -gt 0 ] && echo "✅" || echo "⚠️")"
+echo "- Source maps: $([ $source_maps -eq 0 ] && echo "✅" || echo "⚠️")"
+echo "- SDK: $([ -f "public/packs/js/sdk.js" ] && echo "✅" || echo "❌")"
+
+if [ ${#missing_entries[@]} -eq 0 ] && [ -f "public/packs/js/sdk.js" ]; then
+    echo ""
+    echo "🚀 Build is ready for production deployment!"
+    exit 0
+else
+    echo ""
+    echo "⚠️  Build has some issues that should be addressed"
+    exit 1
+fi

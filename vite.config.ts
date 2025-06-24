@@ -42,9 +42,32 @@ if (isLibraryMode) {
   plugins = [vue(vueOptions)];
 }
 
+// Production optimizations are handled in the build configuration below
+
 export default defineConfig({
   plugins: plugins,
   build: {
+    // Production build optimizations
+    target: 'es2020',
+    minify: process.env.NODE_ENV === 'production' ? 'terser' : false,
+    cssMinify: process.env.NODE_ENV === 'production',
+    sourcemap: process.env.NODE_ENV === 'production' ? false : 'inline',
+    
+    // Chunk size warnings
+    chunkSizeWarningLimit: 1000,
+    
+    // Terser options for better compression
+    terserOptions: {
+      compress: {
+        drop_console: process.env.NODE_ENV === 'production',
+        drop_debugger: process.env.NODE_ENV === 'production',
+        pure_funcs: process.env.NODE_ENV === 'production' ? ['console.log'] : [],
+      },
+      format: {
+        comments: false,
+      },
+    },
+    
     rollupOptions: {
       output: {
         // [NOTE] when not in library mode, no new keys will be addedd or overwritten
@@ -59,10 +82,45 @@ export default defineConfig({
                 return '[name].js';
               },
             }
-          : {}),
+          : {
+              // Production optimizations for non-library builds
+              manualChunks: {
+                // Vendor chunks for better caching
+                vue: ['vue', 'vue-router', 'vuex'],
+                vendor: ['axios', 'lodash.debounce', 'date-fns'],
+                ui: ['@vueuse/core', '@vueuse/components', 'floating-vue'],
+              },
+              chunkFileNames: 'assets/[name]-[hash].js',
+              entryFileNames: 'assets/[name]-[hash].js',
+              assetFileNames: (assetInfo) => {
+                const info = assetInfo.name.split('.');
+                const extType = info[info.length - 1];
+                if (/\.(woff|woff2|eot|ttf|otf)$/.test(assetInfo.name)) {
+                  return 'assets/fonts/[name]-[hash].[ext]';
+                }
+                if (/\.(png|jpe?g|gif|svg|ico|webp)$/.test(assetInfo.name)) {
+                  return 'assets/images/[name]-[hash].[ext]';
+                }
+                if (extType === 'css') {
+                  return 'assets/[name]-[hash].[ext]';
+                }
+                return 'assets/[name]-[hash].[ext]';
+              },
+            }),
         inlineDynamicImports: isLibraryMode, // Disable code-splitting for SDK
       },
+      
+      // External dependencies (for library mode)
+      external: isLibraryMode ? [] : undefined,
+      
+      // Tree shaking optimizations
+      treeshake: {
+        moduleSideEffects: false,
+        propertyReadSideEffects: false,
+        unknownGlobalSideEffects: false,
+      },
     },
+    
     lib: isLibraryMode
       ? {
           entry: path.resolve(__dirname, './app/javascript/entrypoints/sdk.js'),

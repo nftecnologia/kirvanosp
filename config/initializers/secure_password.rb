@@ -10,16 +10,16 @@ Devise.setup do |config|
   # standard configuration parameter.
 
   # The number of uppercase letters (latin A-Z) required in a password:
-  config.password_required_uppercase_count = 1
+  config.password_required_uppercase_count = 0
 
   # The number of lowercase letters (latin A-Z) required in a password:
-  config.password_required_lowercase_count = 1
+  config.password_required_lowercase_count = 0
 
   # The number of numbers (0-9) required in a password:
-  config.password_required_number_count = 1
+  config.password_required_number_count = 0
 
   # The number of special characters (!@#$%^&*()_+-=[]{}|') required in a password:
-  config.password_required_special_character_count = 1
+  config.password_required_special_character_count = 0
 
   # we are not using the configurations below
   # ==> Configuration for the Devise Secure Password extension

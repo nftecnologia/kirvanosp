@@ -1,0 +1,115 @@
+#!/bin/bash
+
+# Quick Fix Performance Script
+# Applies all performance optimizations immediately
+
+echo "🚀 KIRVANO PERFORMANCE QUICK FIX"
+echo "================================"
+echo ""
+echo "This script applies immediate performance optimizations to resolve"
+echo "the 4+ minute loading issue by switching to local services."
+echo ""
+
+# Check if Docker is available
+if ! command -v docker &> /dev/null; then
+    echo "❌ Docker is required but not installed. Please install Docker first."
+    echo "   https://docs.docker.com/get-docker/"
+    exit 1
+fi
+
+# Check if Docker is running
+if ! docker info > /dev/null 2>&1; then
+    echo "❌ Docker is not running. Please start Docker Desktop first."
+    exit 1
+fi
+
+echo "✅ Docker is available and running"
+echo ""
+
+# Step 1: Start local services
+echo "📦 Step 1: Starting local PostgreSQL and Redis services..."
+docker-compose up -d db redis
+
+if [ $? -ne 0 ]; then
+    echo "❌ Failed to start Docker services"
+    exit 1
+fi
+
+echo "✅ Local services started"
+echo ""
+
+# Step 2: Wait for services to be ready
+echo "⏳ Step 2: Waiting for services to be ready (10 seconds)..."
+sleep 10
+
+# Step 3: Switch configuration
+echo "🔧 Step 3: Switching to local configuration..."
+if [ -f ".env.local" ]; then
+    # Backup current config
+    cp .env .env.railway.backup
+    cp .env.local .env
+    echo "✅ Configuration switched to local services"
+else
+    echo "❌ .env.local file not found - this should not happen"
+    exit 1
+fi
+
+# Step 4: Enable caching
+echo "🔄 Step 4: Enabling development caching..."
+touch tmp/caching-dev.txt
+echo "✅ Development caching enabled"
+
+# Step 5: Create/migrate database if needed
+echo "🐘 Step 5: Setting up local database..."
+if bundle exec rails db:create db:migrate > /dev/null 2>&1; then
+    echo "✅ Database setup complete"
+else
+    echo "⚠️  Database setup had issues, but continuing..."
+fi
+
+# Step 6: Test connections
+echo "🔍 Step 6: Testing connections..."
+echo ""
+
+echo "  Testing PostgreSQL..."
+if timeout 10 bundle exec rails runner "ActiveRecord::Base.connection.execute('SELECT 1')" > /dev/null 2>&1; then
+    echo "  ✅ PostgreSQL connection successful"
+else
+    echo "  ⚠️  PostgreSQL connection slow or failed"
+fi
+
+echo "  Testing Redis..."
+if timeout 5 bundle exec rails runner "Rails.cache.redis.ping" > /dev/null 2>&1; then
+    echo "  ✅ Redis connection successful"
+else
+    echo "  ⚠️  Redis connection failed (may work after server restart)"
+fi
+
+echo ""
+echo "🎉 QUICK FIX COMPLETE!"
+echo "====================="
+echo ""
+echo "Performance optimizations applied:"
+echo "  ✓ Local PostgreSQL (instead of Railway cloud)"
+echo "  ✓ Local Redis (instead of Railway cloud)"
+echo "  ✓ Database timeout reduced to 5 seconds"
+echo "  ✓ HTTP request timeout set to 15 seconds"
+echo "  ✓ Development caching enabled"
+echo "  ✓ Asset debug mode disabled"
+echo "  ✓ Request timeout middleware configured"
+echo ""
+echo "🚀 NEXT STEPS:"
+echo "1. Restart your Rails server:"
+echo "   pnpm dev"
+echo "   OR"
+echo "   overmind start -f ./Procfile.dev"
+echo ""
+echo "2. Your application should now load much faster!"
+echo ""
+echo "📊 To monitor performance:"
+echo "   ./bin/performance-check"
+echo ""
+echo "🔄 To revert to Railway services:"
+echo "   ./bin/switch-to-railway"
+echo ""
+echo "💡 The loading time should improve from 4+ minutes to under 30 seconds."
