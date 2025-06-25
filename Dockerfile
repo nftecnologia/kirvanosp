@@ -9,9 +9,7 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
     libpq-dev \
     postgresql-client \
     libvips \
-    && rm -rf /var/lib/apt/lists/* \
-    && npm install -g pnpm@10.2.0 \
-    && pnpm --version
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
@@ -27,7 +25,7 @@ RUN bundle config set --local deployment 'true' && \
 
 # Copiar package.json e instalar dependências Node (caching layer)
 COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile --prod=false
+RUN npm install --legacy-peer-deps
 
 # Copiar código fonte
 COPY . .
@@ -41,10 +39,10 @@ ENV SECRET_KEY_BASE=dummy
 RUN bundle exec rake assets:precompile
 
 # Clean up build dependencies and cache
-RUN pnpm prune --prod && \
+RUN npm prune --production && \
     rm -rf node_modules/.cache && \
     rm -rf /tmp/* && \
-    rm -rf ~/.pnpm-store
+    rm -rf ~/.npm
 
 # Production stage
 FROM ruby:3.4.4-slim AS production
