@@ -9,6 +9,7 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
     libpq-dev \
     postgresql-client \
     libvips \
+    && npm install -g yarn \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -24,8 +25,8 @@ RUN bundle config set --local deployment 'true' && \
     bundle clean --force
 
 # Copiar package.json e instalar dependências Node (caching layer)
-COPY package.json pnpm-lock.yaml ./
-RUN npm install --legacy-peer-deps
+COPY package.json yarn.lock* ./
+RUN yarn install
 
 # Copiar código fonte
 COPY . .
@@ -39,10 +40,10 @@ ENV SECRET_KEY_BASE=dummy
 RUN bundle exec rake assets:precompile
 
 # Clean up build dependencies and cache
-RUN npm prune --production && \
+RUN yarn install --production --frozen-lockfile && \
     rm -rf node_modules/.cache && \
     rm -rf /tmp/* && \
-    rm -rf ~/.npm
+    rm -rf ~/.cache/yarn
 
 # Production stage
 FROM ruby:3.4.4-slim AS production
