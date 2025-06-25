@@ -1,0 +1,224 @@
+version: '3.9'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: kirvano_postgres_dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: kirvano_development
+      POSTGRES_USER: kirvano
+      POSTGRES_PASSWORD: kirvano_dev_password
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --locale=C"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data_dev:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kirvano -d kirvano_development"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - kirvano_network
+
+  # Redis Cache and Sessions
+  redis:
+    image: redis:7-alpine
+    container_name: kirvano_redis_dev
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data_dev:/data
+      - ./docker/redis/redis.conf:/usr/local/etc/redis/redis.conf
+    command: redis-server /usr/local/etc/redis/redis.conf
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - kirvano_network
+
+  # Rails Application
+  rails:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.dev
+      target: development
+    container_name: kirvano_rails_dev
+    restart: unless-stopped
+    environment:
+      RAILS_ENV: development
+      NODE_ENV: development
+      DATABASE_URL: postgresql://kirvano:kirvano_dev_password@postgres:5432/kirvano_development
+      REDIS_URL: redis://redis:6379/0
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USERNAME: kirvano
+      POSTGRES_PASSWORD: kirvano_dev_password
+      POSTGRES_DATABASE: kirvano_development
+      RAILS_MAX_THREADS: 5
+      WEB_CONCURRENCY: 1
+      RAILS_LOG_TO_STDOUT: true
+      RAILS_SERVE_STATIC_FILES: false
+      BOOTSNAP_CACHE_DIR: /tmp/bootsnap
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app:delegated
+      - rails_bundle_cache:/usr/local/bundle
+      - rails_node_modules:/app/node_modules
+      - rails_tmp:/app/tmp
+      - rails_log:/app/log
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    stdin_open: true
+    tty: true
+    networks:
+      - kirvano_network
+    command: ["docker/entrypoints/rails.sh", "bundle", "exec", "rails", "server", "-b", "0.0.0.0", "-p", "3000"]
+
+  # Vite Development Server
+  vite:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.dev
+      target: development
+    container_name: kirvano_vite_dev
+    restart: unless-stopped
+    environment:
+      NODE_ENV: development
+      VITE_HOST: 0.0.0.0
+      VITE_PORT: 3036
+      HMR_HOST: localhost
+      HMR_PORT: 3036
+    ports:
+      - "3036:3036"
+    volumes:
+      - .:/app:delegated
+      - vite_node_modules:/app/node_modules
+      - vite_cache:/app/.vite
+    stdin_open: true
+    tty: true
+    networks:
+      - kirvano_network
+    command: ["docker/entrypoints/vite.sh", "bin/vite", "dev", "--host", "0.0.0.0", "--port", "3036"]
+
+  # Sidekiq Worker
+  sidekiq:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.dev
+      target: development
+    container_name: kirvano_sidekiq_dev
+    restart: unless-stopped
+    environment:
+      RAILS_ENV: development
+      DATABASE_URL: postgresql://kirvano:kirvano_dev_password@postgres:5432/kirvano_development
+      REDIS_URL: redis://redis:6379/0
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USERNAME: kirvano
+      POSTGRES_PASSWORD: kirvano_dev_password
+      POSTGRES_DATABASE: kirvano_development
+      SIDEKIQ_CONCURRENCY: 5
+      RAILS_LOG_TO_STDOUT: true
+    volumes:
+      - .:/app:delegated
+      - sidekiq_bundle_cache:/usr/local/bundle
+      - sidekiq_tmp:/app/tmp
+      - sidekiq_log:/app/log
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - kirvano_network
+    command: ["docker/entrypoints/rails.sh", "bundle", "exec", "sidekiq", "-C", "config/sidekiq.yml"]
+
+  # Nginx Reverse Proxy (optional for local SSL)
+  nginx:
+    image: nginx:alpine
+    container_name: kirvano_nginx_dev
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/nginx/dev.conf:/etc/nginx/conf.d/default.conf
+      - ./docker/nginx/ssl:/etc/nginx/ssl
+    depends_on:
+      - rails
+      - vite
+    networks:
+      - kirvano_network
+    profiles:
+      - with-ssl
+
+  # Mailcatcher for email testing
+  mailcatcher:
+    image: sj26/mailcatcher:latest
+    container_name: kirvano_mailcatcher_dev
+    restart: unless-stopped
+    ports:
+      - "1025:1025"  # SMTP
+      - "1080:1080"  # Web interface
+    networks:
+      - kirvano_network
+    profiles:
+      - with-mail
+
+  # Database administration tool
+  adminer:
+    image: adminer:latest
+    container_name: kirvano_adminer_dev
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+    depends_on:
+      - postgres
+    networks:
+      - kirvano_network
+    profiles:
+      - with-db-admin
+
+volumes:
+  postgres_data_dev:
+    driver: local
+  redis_data_dev:
+    driver: local
+  rails_bundle_cache:
+    driver: local
+  rails_node_modules:
+    driver: local
+  rails_tmp:
+    driver: local
+  rails_log:
+    driver: local
+  vite_node_modules:
+    driver: local
+  vite_cache:
+    driver: local
+  sidekiq_bundle_cache:
+    driver: local
+  sidekiq_tmp:
+    driver: local
+  sidekiq_log:
+    driver: local
+
+networks:
+  kirvano_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

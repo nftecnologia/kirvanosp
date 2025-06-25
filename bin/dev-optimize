@@ -1,0 +1,238 @@
+#!/usr/bin/env bash
+# Development Optimization Script
+# This script sets up optimal conditions for local development
+
+set -e
+
+echo "🚀 Optimizing Kirvano development environment..."
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Function to print colored output
+print_status() {
+    echo -e "${GREEN}✓${NC} $1"
+}
+
+print_warning() {
+    echo -e "${YELLOW}⚠${NC} $1"
+}
+
+print_error() {
+    echo -e "${RED}✗${NC} $1"
+}
+
+# Check if Redis is running
+check_redis() {
+    if redis-cli ping > /dev/null 2>&1; then
+        print_status "Redis is running"
+    else
+        print_warning "Redis is not running. Starting Redis..."
+        if command -v brew &> /dev/null; then
+            brew services start redis
+        elif command -v systemctl &> /dev/null; then
+            sudo systemctl start redis
+        else
+            print_error "Please start Redis manually"
+            exit 1
+        fi
+    fi
+}
+
+# Check PostgreSQL
+check_postgres() {
+    if pg_isready -q; then
+        print_status "PostgreSQL is running"
+        
+        # Optimize PostgreSQL for development
+        echo "🔧 Optimizing PostgreSQL settings for development..."
+        
+        # Create a temporary optimization script
+        cat > /tmp/pg_dev_optimize.sql << EOF
+-- Optimize PostgreSQL for development performance
+-- These settings are applied per session and won't persist after restart
+
+-- Memory settings
+SET work_mem = '16MB';
+SET shared_buffers = '256MB';
+SET effective_cache_size = '1GB';
+
+-- Checkpoint settings for faster writes
+SET checkpoint_completion_target = 0.9;
+SET wal_buffers = '16MB';
+
+-- Reduce random page cost for SSD
+SET random_page_cost = 1.1;
+
+-- Enable query logging for slow queries
+SET log_min_duration_statement = 100;
+SET log_statement = 'none';
+SET log_duration = off;
+
+-- Connection settings
+SET tcp_keepalives_idle = 30;
+SET tcp_keepalives_interval = 10;
+SET tcp_keepalives_count = 3;
+
+SELECT 'PostgreSQL optimized for development' as status;
+EOF
+        
+        # Apply optimizations if database exists
+        if bundle exec rails runner "ActiveRecord::Base.connection.execute('SELECT 1')" > /dev/null 2>&1; then
+            psql -d "$(bundle exec rails runner "puts ActiveRecord::Base.connection_db_config.database")" -f /tmp/pg_dev_optimize.sql > /dev/null 2>&1
+            print_status "PostgreSQL optimized for development"
+        else
+            print_warning "Database not found. Run 'rails db:create db:migrate' first."
+        fi
+        
+        rm -f /tmp/pg_dev_optimize.sql
+    else
+        print_error "PostgreSQL is not running. Please start PostgreSQL."
+        exit 1
+    fi
+}
+
+# Enable Rails development caching
+enable_rails_caching() {
+    if [ ! -f tmp/caching-dev.txt ]; then
+        echo "🔧 Enabling Rails development caching..."
+        bundle exec rails dev:cache
+        print_status "Rails development caching enabled"
+    else
+        print_status "Rails development caching already enabled"
+    fi
+}
+
+# Precompile assets for development (partial)
+optimize_assets() {
+    echo "🔧 Optimizing assets for development..."
+    
+    # Clear old assets but keep Vite cache
+    rm -rf public/vite-dev/* 2>/dev/null || true
+    rm -rf public/packs/* 2>/dev/null || true
+    
+    # Ensure Vite cache directory exists
+    mkdir -p node_modules/.vite
+    
+    # Pre-optimize dependencies
+    echo "📦 Pre-bundling Vite dependencies..."
+    pnpm exec vite optimize > /dev/null 2>&1 || true
+    
+    print_status "Assets optimized for development"
+}
+
+# Setup performance monitoring
+setup_monitoring() {
+    echo "🔧 Setting up performance monitoring..."
+    
+    # Create performance log directory
+    mkdir -p tmp/performance
+    
+    # Setup Bullet gem logging
+    mkdir -p log
+    touch log/bullet.log
+    
+    # Create development performance monitoring script
+    cat > bin/perf-monitor << 'EOF'
+#!/usr/bin/env bash
+# Performance monitoring for development
+
+echo "📊 Development Performance Monitor"
+echo "=================================="
+
+# Check Redis performance
+if redis-cli ping > /dev/null 2>&1; then
+    echo "Redis Memory Usage: $(redis-cli info memory | grep used_memory_human | cut -d: -f2)"
+    echo "Redis Connected Clients: $(redis-cli info clients | grep connected_clients | cut -d: -f2)"
+fi
+
+# Check database connections
+if bundle exec rails runner "puts ActiveRecord::Base.connection_pool.stat" > /dev/null 2>&1; then
+    echo ""
+    echo "Database Connection Pool:"
+    bundle exec rails runner "puts ActiveRecord::Base.connection_pool.stat"
+fi
+
+# Check file sizes
+echo ""
+echo "Asset Sizes:"
+if [ -d "public/vite" ]; then
+    du -sh public/vite/* 2>/dev/null | head -5
+fi
+
+# Check recent slow queries
+if [ -f "log/development.log" ]; then
+    echo ""
+    echo "Recent Slow Queries (last 10):"
+    grep -i "slow query" log/development.log | tail -10 | cut -c1-100
+fi
+
+echo ""
+echo "Performance monitoring complete ✓"
+EOF
+    
+    chmod +x bin/perf-monitor
+    print_status "Performance monitoring setup complete"
+}
+
+# Optimize Sidekiq for development
+optimize_sidekiq() {
+    echo "🔧 Optimizing Sidekiq for development..."
+    
+    # Create development-specific Sidekiq configuration
+    cat > config/sidekiq_dev.yml << 'EOF'
+# Development-specific Sidekiq configuration
+---
+:verbose: false
+:concurrency: 3  # Reduced for development
+:timeout: 15     # Shorter timeout for development
+:max_retries: 1  # Fewer retries in development
+
+:queues:
+  - critical
+  - high
+  - default
+  - low
+  - mailers
+
+# Development-specific settings
+development:
+  :concurrency: 3
+  :timeout: 15
+EOF
+    
+    print_status "Sidekiq optimized for development"
+}
+
+# Main optimization routine
+main() {
+    echo "Starting development environment optimization..."
+    echo ""
+    
+    # Check dependencies
+    check_redis
+    check_postgres
+    
+    # Setup optimizations
+    enable_rails_caching
+    optimize_assets
+    optimize_sidekiq
+    setup_monitoring
+    
+    echo ""
+    print_status "Development environment optimization complete!"
+    echo ""
+    echo "🎯 Performance Tips:"
+    echo "   • Run 'bin/perf-monitor' to check performance"
+    echo "   • Use 'overmind start -f Procfile.dev' for optimal service management"
+    echo "   • Monitor slow queries in log/development.log"
+    echo "   • Keep Redis and PostgreSQL running for best performance"
+    echo ""
+    echo "🚀 Ready to start development with: pnpm dev"
+}
+
+# Run main function
+main

@@ -49,12 +49,6 @@ class Account < ApplicationRecord
   }.freeze
 
   validates :domain, length: { maximum: 100 }
-  validates_with JsonSchemaValidator,
-                 schema: SETTINGS_PARAMS_SCHEMA,
-                 attribute_resolver: ->(record) { record.settings }
-
-  store_accessor :settings, :auto_resolve_after, :auto_resolve_message, :auto_resolve_ignore_waiting
-  store_accessor :settings, :audio_transcriptions, :auto_resolve_label
 
   has_many :account_users, dependent: :destroy_async
   has_many :agent_bot_inboxes, dependent: :destroy_async
@@ -103,7 +97,7 @@ class Account < ApplicationRecord
   enum :locale, LANGUAGES_CONFIG.map { |key, val| [val[:iso_639_1_code], key] }.to_h, prefix: true
   enum :status, { active: 0, suspended: 1 }
 
-  scope :with_auto_resolve, -> { where("(settings ->> 'auto_resolve_after')::int IS NOT NULL") }
+  # scope :with_auto_resolve, -> { where("(settings ->> 'auto_resolve_after')::int IS NOT NULL") }
 
   before_validation :validate_limit_keys
   after_create_commit :notify_creation

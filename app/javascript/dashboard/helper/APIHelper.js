@@ -34,9 +34,8 @@ export default axios => {
     config => {
       // Add request timeout warning for development
       if (process.env.NODE_ENV === 'development') {
-        console.log(`API Request: ${config.method?.toUpperCase()} ${config.url}`);
         const timeoutWarning = setTimeout(() => {
-          console.warn(`Slow API request detected: ${config.method?.toUpperCase()} ${config.url} (>5s)`);
+          // Slow API request detected - could add monitoring here
         }, 5000);
         config.timeoutWarning = timeoutWarning;
       }
@@ -60,7 +59,6 @@ export default axios => {
         clearTimeout(error.config.timeoutWarning);
       }
       if (error.code === 'ECONNABORTED' && error.message.includes('timeout')) {
-        console.error('API request timed out:', error.config?.url);
         error.message = 'Request timed out. Please check your connection and try again.';
       }
       return parseErrorCode(error);

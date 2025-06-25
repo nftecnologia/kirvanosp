@@ -1,0 +1,58 @@
+# Development Dockerfile for Kirvano
+FROM ruby:3.4.4 AS base
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    libpq-dev \
+    postgresql-client \
+    libvips \
+    curl \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Node.js 20 and pnpm
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+    apt-get install -y nodejs && \
+    corepack enable
+
+WORKDIR /app
+
+# Install bundler
+RUN gem install bundler
+
+# Development stage
+FROM base AS development
+
+# Set development environment
+ENV RAILS_ENV=development
+ENV NODE_ENV=development
+ENV BOOTSNAP_CACHE_DIR=/tmp/bootsnap
+
+# Install Ruby dependencies
+COPY Gemfile Gemfile.lock ./
+RUN bundle config set --local deployment 'false' && \
+    bundle config set --local path '/usr/local/bundle' && \
+    bundle install
+
+# Install Node.js dependencies
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
+
+# Copy application code
+COPY . .
+
+# Create necessary directories and set permissions
+RUN mkdir -p tmp/pids tmp/cache log && \
+    chmod -R 755 tmp/ log/ && \
+    chmod +x docker/entrypoints/*.sh
+
+# Expose ports
+EXPOSE 3000 3036
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:3000/up || exit 1
+
+# Default command
+CMD ["bundle", "exec", "rails", "server", "-b", "0.0.0.0", "-p", "3000"]

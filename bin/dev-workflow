@@ -1,0 +1,317 @@
+#!/usr/bin/env ruby
+
+# Development workflow automation script
+# Usage: bin/dev-workflow [command] [options]
+
+require 'optparse'
+require 'fileutils'
+require 'open3'
+
+class DevWorkflow
+  COMMANDS = {
+    'setup' => 'Set up development environment',
+    'start' => 'Start development servers',
+    'test' => 'Run test suite',
+    'lint' => 'Run linting and formatting',
+    'clean' => 'Clean development artifacts',
+    'reset' => 'Reset development environment',
+    'check' => 'Run comprehensive health check',
+    'deploy' => 'Deploy to staging/production'
+  }.freeze
+
+  def initialize
+    @options = {}
+    @verbose = false
+  end
+
+  def run
+    command = ARGV.shift
+    
+    if command.nil? || command == 'help'
+      show_help
+      return
+    end
+
+    unless COMMANDS.key?(command)
+      puts "❌ Unknown command: #{command}"
+      show_help
+      return
+    end
+
+    parse_options
+    send("cmd_#{command}")
+  end
+
+  private
+
+  def show_help
+    puts "🛠️  Kirvano Development Workflow"
+    puts "Usage: bin/dev-workflow [command] [options]"
+    puts
+    puts "Available commands:"
+    COMMANDS.each do |cmd, desc|
+      puts "  #{cmd.ljust(10)} - #{desc}"
+    end
+    puts
+    puts "Options:"
+    puts "  -v, --verbose    Verbose output"
+    puts "  -h, --help       Show this help"
+  end
+
+  def parse_options
+    OptionParser.new do |opts|
+      opts.on('-v', '--verbose', 'Verbose output') { @verbose = true }
+      opts.on('-h', '--help', 'Show help') { show_help; exit }
+    end.parse!
+  end
+
+  def cmd_setup
+    puts "🚀 Setting up Kirvano development environment..."
+    
+    steps = [
+      { name: "Installing Ruby dependencies", cmd: "bundle install" },
+      { name: "Installing Node.js dependencies", cmd: "pnpm install" },
+      { name: "Setting up database", cmd: "bin/rails db:setup" },
+      { name: "Running initial migrations", cmd: "bin/rails db:migrate" },
+      { name: "Installing Git hooks", cmd: "pnpm prepare" },
+      { name: "Creating development environment file", cmd: -> { create_env_file } },
+      { name: "Precompiling assets", cmd: "bin/rails assets:precompile" }
+    ]
+
+    run_steps(steps)
+    
+    puts "✅ Development environment setup complete!"
+    puts "💡 Run 'bin/dev-workflow start' to start development servers"
+  end
+
+  def cmd_start
+    puts "🚀 Starting Kirvano development servers..."
+    
+    if system_has_command?('overmind')
+      puts "🔄 Using Overmind to start services..."
+      exec("overmind start -f Procfile.dev")
+    elsif system_has_command?('foreman')
+      puts "🔄 Using Foreman to start services..."
+      exec("foreman start -f Procfile.dev")
+    else
+      puts "❌ Neither Overmind nor Foreman found"
+      puts "💡 Install Overmind: brew install overmind"
+      puts "💡 Or install Foreman: gem install foreman"
+      exit 1
+    end
+  end
+
+  def cmd_test
+    puts "🧪 Running Kirvano test suite..."
+    
+    puts "🟡 Running JavaScript tests..."
+    run_command("pnpm test")
+    
+    if Dir.exist?('spec')
+      puts "🔴 Running Ruby tests..."
+      run_command("bundle exec rspec")
+    end
+    
+    puts "📊 Generating test coverage report..."
+    run_command("pnpm test:coverage")
+    
+    puts "✅ All tests completed!"
+  end
+
+  def cmd_lint
+    puts "🔍 Running linting and formatting..."
+    
+    puts "🔴 Checking Ruby code with RuboCop..."
+    if @options[:fix]
+      run_command("bundle exec rubocop -a")
+    else
+      run_command("bundle exec rubocop")
+    end
+    
+    puts "🟡 Checking JavaScript/Vue code with ESLint..."
+    if @options[:fix]
+      run_command("pnpm eslint:fix")
+    else
+      run_command("pnpm eslint")
+    end
+    
+    puts "✅ Linting completed!"
+  end
+
+  def cmd_clean
+    puts "🧹 Cleaning development artifacts..."
+    
+    artifacts = [
+      'tmp/cache',
+      'tmp/pids',
+      'tmp/miniprofiler',
+      'log/*.log',
+      'coverage',
+      'public/packs',
+      'public/vite',
+      'node_modules/.cache'
+    ]
+    
+    artifacts.each do |path|
+      if File.exist?(path) || Dir.exist?(path)
+        puts "🗑️  Removing #{path}..."
+        FileUtils.rm_rf(path)
+      end
+    end
+    
+    puts "✅ Cleanup completed!"
+  end
+
+  def cmd_reset
+    puts "🔄 Resetting development environment..."
+    
+    cmd_clean
+    
+    puts "🗃️  Resetting database..."
+    run_command("bin/rails db:drop db:create db:migrate")
+    
+    puts "📦 Reinstalling dependencies..."
+    run_command("bundle install")
+    run_command("pnpm install")
+    
+    puts "✅ Development environment reset!"
+  end
+
+  def cmd_check
+    puts "🏥 Running comprehensive health check..."
+    
+    checks = [
+      { name: "Ruby version", check: -> { check_ruby_version } },
+      { name: "Node.js version", check: -> { check_node_version } },
+      { name: "Database connection", check: -> { check_database } },
+      { name: "Redis connection", check: -> { check_redis } },
+      { name: "Environment variables", check: -> { check_env_vars } },
+      { name: "File permissions", check: -> { check_permissions } },
+      { name: "Git hooks", check: -> { check_git_hooks } },
+      { name: "Dependencies", check: -> { check_dependencies } }
+    ]
+    
+    passed = 0
+    total = checks.length
+    
+    checks.each do |check|
+      print "#{check[:name].ljust(25)} ... "
+      if check[:check].call
+        puts "✅"
+        passed += 1
+      else
+        puts "❌"
+      end
+    end
+    
+    puts
+    puts "Health check: #{passed}/#{total} checks passed"
+    
+    if passed == total
+      puts "🎉 All systems go!"
+    else
+      puts "⚠️  Some issues detected. Please review the failed checks."
+    end
+  end
+
+  def cmd_deploy
+    puts "🚀 Deployment workflow not implemented yet"
+    puts "💡 This would handle staging/production deployments"
+  end
+
+  def run_steps(steps)
+    steps.each_with_index do |step, index|
+      puts "[#{index + 1}/#{steps.length}] #{step[:name]}..."
+      
+      if step[:cmd].is_a?(Proc)
+        step[:cmd].call
+      else
+        run_command(step[:cmd])
+      end
+    end
+  end
+
+  def run_command(cmd)
+    if @verbose
+      puts "  Running: #{cmd}"
+    end
+    
+    success = system(cmd)
+    unless success
+      puts "❌ Command failed: #{cmd}"
+      exit 1
+    end
+  end
+
+  def system_has_command?(command)
+    system("which #{command} > /dev/null 2>&1")
+  end
+
+  def create_env_file
+    env_file = '.env.local'
+    return if File.exist?(env_file)
+    
+    puts "📝 Creating #{env_file}..."
+    FileUtils.cp('.env.development', env_file) if File.exist?('.env.development')
+  end
+
+  def check_ruby_version
+    required_version = '3.0.0'
+    current_version = RUBY_VERSION
+    Gem::Version.new(current_version) >= Gem::Version.new(required_version)
+  rescue
+    false
+  end
+
+  def check_node_version
+    return false unless system_has_command?('node')
+    
+    output, status = Open3.capture2('node --version')
+    return false unless status.success?
+    
+    version = output.strip.gsub('v', '')
+    Gem::Version.new(version) >= Gem::Version.new('18.0.0')
+  rescue
+    false
+  end
+
+  def check_database
+    return false unless File.exist?('bin/rails')
+    
+    _, status = Open3.capture2e('bin/rails runner "ActiveRecord::Base.connection.execute(\'SELECT 1\')"')
+    status.success?
+  rescue
+    false
+  end
+
+  def check_redis
+    return false unless system_has_command?('redis-cli')
+    
+    _, status = Open3.capture2e('redis-cli ping')
+    status.success?
+  rescue
+    false
+  end
+
+  def check_env_vars
+    required_vars = ['DATABASE_URL', 'REDIS_URL']
+    required_vars.all? { |var| ENV[var] }
+  end
+
+  def check_permissions
+    %w[bin/rails bin/dev-workflow].all? { |file| File.executable?(file) }
+  end
+
+  def check_git_hooks
+    %w[.husky/pre-commit .husky/pre-push].all? { |hook| File.executable?(hook) }
+  end
+
+  def check_dependencies
+    bundle_ok = system('bundle check > /dev/null 2>&1')
+    node_ok = File.exist?('node_modules') && File.exist?('pnpm-lock.yaml')
+    bundle_ok && node_ok
+  end
+end
+
+# Run the workflow
+DevWorkflow.new.run if __FILE__ == $0

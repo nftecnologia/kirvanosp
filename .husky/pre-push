@@ -1,4 +1,59 @@
-#!/bin/sh
-. "$(dirname "$0")/_/husky.sh"
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
 
-sh bin/validate_push
+echo "🚀 Running pre-push checks..."
+
+# Get the current branch
+CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+
+# Check if pushing to protected branches
+if [ "$CURRENT_BRANCH" = "main" ] || [ "$CURRENT_BRANCH" = "master" ]; then
+  echo "⚠️  You are pushing to the main branch: $CURRENT_BRANCH"
+  echo "🤔 Are you sure you want to continue? (y/n)"
+  read -r response
+  if [ "$response" != "y" ] && [ "$response" != "Y" ]; then
+    echo "❌ Push cancelled"
+    exit 1
+  fi
+fi
+
+# Run comprehensive tests before pushing
+echo "🧪 Running test suite..."
+
+# Run JavaScript tests
+echo "🟡 Running JavaScript tests..."
+if ! pnpm test; then
+  echo "❌ JavaScript tests failed"
+  echo "💡 Fix failing tests before pushing"
+  exit 1
+fi
+echo "✅ JavaScript tests passed"
+
+# Check code quality
+echo "📊 Running code quality checks..."
+
+# Run RuboCop on all Ruby files
+if ! bundle exec rubocop; then
+  echo "❌ RuboCop quality check failed"
+  echo "💡 Run 'bundle exec rubocop -a' to fix issues"
+  exit 1
+fi
+echo "✅ RuboCop quality check passed"
+
+# Run ESLint on all JS/Vue files
+if ! pnpm eslint app/**/*.{js,vue}; then
+  echo "❌ ESLint quality check failed"
+  echo "💡 Run 'pnpm eslint:fix' to fix issues"
+  exit 1
+fi
+echo "✅ ESLint quality check passed"
+
+# Check for uncommitted changes
+if ! git diff-index --quiet HEAD --; then
+  echo "⚠️  You have uncommitted changes"
+  echo "💡 Commit all changes before pushing"
+  exit 1
+fi
+
+echo "🎉 All pre-push checks passed!"
+echo "✨ Code is ready to be pushed!"

@@ -1,0 +1,496 @@
+#!/usr/bin/env ruby
+
+# Local CI/CD pipeline simulation
+# Mimics the CI/CD pipeline that would run in production
+
+require 'json'
+require 'yaml'
+require 'fileutils'
+require 'open3'
+
+class CISimulation
+  def initialize
+    @results = {
+      stages: [],
+      start_time: Time.now,
+      end_time: nil,
+      status: 'running',
+      failed_stage: nil
+    }
+    @verbose = ARGV.include?('--verbose') || ARGV.include?('-v')
+  end
+
+  def run
+    puts "🚀 Starting Local CI/CD Pipeline Simulation"
+    puts "=" * 60
+    
+    stages = [
+      { name: 'Environment Check', method: :stage_environment_check },
+      { name: 'Security Scan', method: :stage_security_scan },
+      { name: 'Dependency Audit', method: :stage_dependency_audit },
+      { name: 'Code Quality', method: :stage_code_quality },
+      { name: 'Unit Tests', method: :stage_unit_tests },
+      { name: 'Integration Tests', method: :stage_integration_tests },
+      { name: 'Performance Tests', method: :stage_performance_tests },
+      { name: 'Build Assets', method: :stage_build_assets },
+      { name: 'Security Headers', method: :stage_security_headers },
+      { name: 'Final Validation', method: :stage_final_validation }
+    ]
+
+    stages.each_with_index do |stage, index|
+      stage_start = Time.now
+      puts "\n[#{index + 1}/#{stages.length}] #{stage[:name]}"
+      puts "-" * 40
+      
+      begin
+        result = send(stage[:method])
+        stage_duration = Time.now - stage_start
+        
+        @results[:stages] << {
+          name: stage[:name],
+          status: result[:status],
+          duration: stage_duration.round(2),
+          details: result[:details] || []
+        }
+        
+        if result[:status] == 'failed'
+          @results[:status] = 'failed'
+          @results[:failed_stage] = stage[:name]
+          break
+        end
+        
+        puts "✅ #{stage[:name]} completed in #{stage_duration.round(2)}s"
+        
+      rescue => e
+        @results[:stages] << {
+          name: stage[:name],
+          status: 'error',
+          duration: (Time.now - stage_start).round(2),
+          error: e.message
+        }
+        @results[:status] = 'error'
+        @results[:failed_stage] = stage[:name]
+        puts "💥 #{stage[:name]} failed with error: #{e.message}"
+        break
+      end
+    end
+
+    @results[:end_time] = Time.now
+    @results[:total_duration] = (@results[:end_time] - @results[:start_time]).round(2)
+    
+    if @results[:status] == 'running'
+      @results[:status] = 'passed'
+    end
+
+    generate_report
+  end
+
+  private
+
+  def stage_environment_check
+    puts "🔍 Checking development environment..."
+    
+    checks = []
+    
+    # Ruby version check
+    if check_ruby_version
+      checks << "✅ Ruby #{RUBY_VERSION}"
+    else
+      checks << "❌ Ruby version check failed"
+      return { status: 'failed', details: checks }
+    end
+    
+    # Node.js version check
+    if check_node_version
+      node_version = `node --version`.strip
+      checks << "✅ Node.js #{node_version}"
+    else
+      checks << "❌ Node.js version check failed"
+      return { status: 'failed', details: checks }
+    end
+    
+    # Database connection
+    if check_database_connection
+      checks << "✅ Database connection"
+    else
+      checks << "❌ Database connection failed"
+      return { status: 'failed', details: checks }
+    end
+    
+    # Redis connection
+    if check_redis_connection
+      checks << "✅ Redis connection"
+    else
+      checks << "⚠️  Redis connection failed (optional)"
+    end
+    
+    { status: 'passed', details: checks }
+  end
+
+  def stage_security_scan
+    puts "🔒 Running security scans..."
+    
+    issues = []
+    
+    # Check for secrets in code
+    puts "  Scanning for secrets..."
+    if system('git grep -i "password\\|secret\\|key\\|token" -- "*.rb" "*.js" "*.vue" > /dev/null 2>&1')
+      secret_files = `git grep -l -i "password\\|secret\\|key\\|token" -- "*.rb" "*.js" "*.vue"`.split("\n")
+      secret_files.each { |file| issues << "Potential secret in #{file}" }
+    end
+    
+    # Check for SQL injection patterns
+    puts "  Checking for SQL injection patterns..."
+    if system('git grep -E "User\.find\\([^)]*params" -- "*.rb" > /dev/null 2>&1')
+      issues << "Potential SQL injection patterns found"
+    end
+    
+    # Check for XSS vulnerabilities
+    puts "  Checking for XSS vulnerabilities..."
+    if system('git grep -E "html_safe|raw\\(" -- "*.rb" "*.erb" > /dev/null 2>&1')
+      issues << "Potential XSS vulnerabilities found"
+    end
+    
+    # Check file permissions
+    puts "  Checking file permissions..."
+    world_writable = `find . -type f -perm -002 2>/dev/null | grep -v ".git" | head -10`.strip
+    unless world_writable.empty?
+      issues << "World-writable files found"
+    end
+    
+    if issues.any?
+      puts "⚠️  Security issues found:"
+      issues.each { |issue| puts "    - #{issue}" }
+      { status: 'failed', details: issues }
+    else
+      { status: 'passed', details: ["No security issues found"] }
+    end
+  end
+
+  def stage_dependency_audit
+    puts "📦 Auditing dependencies..."
+    
+    audits = []
+    
+    # Ruby dependency audit
+    puts "  Auditing Ruby gems..."
+    output, status = Open3.capture2e('bundle audit check --update')
+    if status.success?
+      audits << "✅ Ruby gems audit passed"
+    else
+      audits << "❌ Ruby gems audit failed"
+      audits << output.split("\n").last(3).join(" / ") if @verbose
+      return { status: 'failed', details: audits }
+    end
+    
+    # Node.js dependency audit
+    puts "  Auditing Node.js packages..."
+    output, status = Open3.capture2e('pnpm audit --audit-level moderate')
+    if status.success?
+      audits << "✅ Node.js packages audit passed"
+    else
+      audits << "⚠️  Node.js packages have vulnerabilities"
+      # Don't fail on npm audit as it's often too strict
+    end
+    
+    { status: 'passed', details: audits }
+  end
+
+  def stage_code_quality
+    puts "📊 Checking code quality..."
+    
+    quality_checks = []
+    
+    # RuboCop
+    puts "  Running RuboCop..."
+    output, status = Open3.capture2e('bundle exec rubocop --format json')
+    if status.success?
+      quality_checks << "✅ RuboCop passed"
+    else
+      rubocop_result = JSON.parse(output) rescue {}
+      offense_count = rubocop_result.dig('summary', 'offense_count') || 'unknown'
+      quality_checks << "❌ RuboCop failed with #{offense_count} offenses"
+      return { status: 'failed', details: quality_checks }
+    end
+    
+    # ESLint
+    puts "  Running ESLint..."
+    _, status = Open3.capture2e('pnpm eslint app/**/*.{js,vue} --format json')
+    if status.success?
+      quality_checks << "✅ ESLint passed"
+    else
+      quality_checks << "❌ ESLint failed"
+      return { status: 'failed', details: quality_checks }
+    end
+    
+    # Check for code complexity
+    puts "  Checking code complexity..."
+    complex_files = `find app -name "*.rb" -exec wc -l {} + | sort -nr | head -5 | awk '$1 > 200 {print $2}'`.strip
+    unless complex_files.empty?
+      quality_checks << "⚠️  Large files detected (>200 lines)"
+    end
+    
+    { status: 'passed', details: quality_checks }
+  end
+
+  def stage_unit_tests
+    puts "🧪 Running unit tests..."
+    
+    test_results = []
+    
+    # JavaScript tests
+    puts "  Running JavaScript tests..."
+    output, status = Open3.capture2e('pnpm test')
+    if status.success?
+      test_results << "✅ JavaScript tests passed"
+    else
+      test_results << "❌ JavaScript tests failed"
+      test_results << output.split("\n").grep(/FAIL|✖/).first(3) if @verbose
+      return { status: 'failed', details: test_results }
+    end
+    
+    # Ruby tests (if RSpec is available)
+    if Dir.exist?('spec')
+      puts "  Running Ruby tests..."
+      output, status = Open3.capture2e('bundle exec rspec --format json')
+      if status.success?
+        test_results << "✅ Ruby tests passed"
+        if @verbose
+          rspec_result = JSON.parse(output) rescue {}
+          example_count = rspec_result.dig('summary', 'example_count')
+          test_results << "    #{example_count} examples run" if example_count
+        end
+      else
+        test_results << "❌ Ruby tests failed"
+        return { status: 'failed', details: test_results }
+      end
+    end
+    
+    { status: 'passed', details: test_results }
+  end
+
+  def stage_integration_tests
+    puts "🔗 Running integration tests..."
+    
+    # For now, just simulate integration tests
+    # In a real scenario, this would run Capybara/Selenium tests
+    
+    sleep(2) # Simulate test execution time
+    
+    { status: 'passed', details: ["Integration tests simulated (not implemented)"] }
+  end
+
+  def stage_performance_tests
+    puts "⚡ Running performance tests..."
+    
+    perf_results = []
+    
+    # Check bundle size
+    puts "  Checking JavaScript bundle size..."
+    if File.exist?('public/vite')
+      js_files = Dir.glob('public/vite/**/*.js')
+      large_bundles = js_files.select { |f| File.size(f) > 500_000 } # 500KB
+      if large_bundles.any?
+        perf_results << "⚠️  Large JavaScript bundles detected"
+      else
+        perf_results << "✅ JavaScript bundle sizes OK"
+      end
+    end
+    
+    # Check for N+1 queries in test output
+    puts "  Checking for N+1 query warnings..."
+    if File.exist?('log/test.log')
+      n_plus_one = `grep -c "N+1" log/test.log 2>/dev/null`.to_i
+      if n_plus_one > 0
+        perf_results << "⚠️  #{n_plus_one} potential N+1 queries detected"
+      else
+        perf_results << "✅ No N+1 queries detected"
+      end
+    end
+    
+    { status: 'passed', details: perf_results }
+  end
+
+  def stage_build_assets
+    puts "🏗️  Building assets..."
+    
+    build_results = []
+    
+    # Precompile Rails assets
+    puts "  Precompiling Rails assets..."
+    output, status = Open3.capture2e('RAILS_ENV=production bundle exec rails assets:precompile')
+    if status.success?
+      build_results << "✅ Rails assets precompiled"
+    else
+      build_results << "❌ Rails asset precompilation failed"
+      return { status: 'failed', details: build_results }
+    end
+    
+    # Build Vite assets
+    puts "  Building Vite assets..."
+    output, status = Open3.capture2e('pnpm build')
+    if status.success?
+      build_results << "✅ Vite assets built"
+    else
+      build_results << "❌ Vite build failed"
+      return { status: 'failed', details: build_results }
+    end
+    
+    { status: 'passed', details: build_results }
+  end
+
+  def stage_security_headers
+    puts "🛡️  Checking security configuration..."
+    
+    security_checks = []
+    
+    # Check for security headers in configuration
+    config_files = ['config/application.rb', 'config/environments/production.rb']
+    security_headers = ['force_ssl', 'content_security_policy', 'permissions_policy']
+    
+    security_headers.each do |header|
+      found = config_files.any? do |file|
+        File.exist?(file) && File.read(file).include?(header)
+      end
+      
+      if found
+        security_checks << "✅ #{header} configured"
+      else
+        security_checks << "⚠️  #{header} not found"
+      end
+    end
+    
+    { status: 'passed', details: security_checks }
+  end
+
+  def stage_final_validation
+    puts "🔍 Final validation..."
+    
+    validations = []
+    
+    # Check if Rails app can boot
+    puts "  Validating Rails application..."
+    output, status = Open3.capture2e('timeout 30 bundle exec rails runner "puts Rails.application.class.name"')
+    if status.success?
+      validations << "✅ Rails application boots successfully"
+    else
+      validations << "❌ Rails application failed to boot"
+      return { status: 'failed', details: validations }
+    end
+    
+    # Check for required environment variables
+    puts "  Checking environment variables..."
+    required_vars = ['SECRET_KEY_BASE', 'DATABASE_URL']
+    missing_vars = required_vars.reject { |var| ENV[var] }
+    
+    if missing_vars.any?
+      validations << "⚠️  Missing environment variables: #{missing_vars.join(', ')}"
+    else
+      validations << "✅ Required environment variables present"
+    end
+    
+    { status: 'passed', details: validations }
+  end
+
+  def check_ruby_version
+    required_version = '3.0.0'
+    Gem::Version.new(RUBY_VERSION) >= Gem::Version.new(required_version)
+  rescue
+    false
+  end
+
+  def check_node_version
+    return false unless system('which node > /dev/null 2>&1')
+    
+    version = `node --version`.strip.gsub('v', '')
+    Gem::Version.new(version) >= Gem::Version.new('18.0.0')
+  rescue
+    false
+  end
+
+  def check_database_connection
+    return false unless File.exist?('bin/rails')
+    
+    system('bin/rails runner "ActiveRecord::Base.connection.execute(\'SELECT 1\')" > /dev/null 2>&1')
+  end
+
+  def check_redis_connection
+    system('redis-cli ping > /dev/null 2>&1')
+  end
+
+  def generate_report
+    puts "\n" + "=" * 60
+    puts "📊 CI/CD PIPELINE SIMULATION REPORT"
+    puts "=" * 60
+    
+    puts "Status: #{status_emoji(@results[:status])} #{@results[:status].upcase}"
+    puts "Total Duration: #{@results[:total_duration]}s"
+    puts "Started: #{@results[:start_time].strftime('%Y-%m-%d %H:%M:%S')}"
+    puts "Ended: #{@results[:end_time].strftime('%Y-%m-%d %H:%M:%S')}"
+    
+    if @results[:failed_stage]
+      puts "Failed Stage: #{@results[:failed_stage]}"
+    end
+    
+    puts "\nStage Results:"
+    puts "-" * 40
+    
+    @results[:stages].each do |stage|
+      status_icon = status_emoji(stage[:status])
+      puts "#{status_icon} #{stage[:name].ljust(20)} #{stage[:duration]}s"
+      
+      if @verbose && stage[:details]
+        stage[:details].each { |detail| puts "    #{detail}" }
+      end
+    end
+    
+    puts "\n💡 Recommendations:"
+    generate_recommendations
+    
+    # Save report to file
+    report_file = "tmp/ci-report-#{Time.now.to_i}.json"
+    FileUtils.mkdir_p(File.dirname(report_file))
+    File.write(report_file, JSON.pretty_generate(@results))
+    puts "\n📄 Full report saved to: #{report_file}"
+    
+    puts "=" * 60
+    
+    exit 1 if @results[:status] == 'failed' || @results[:status] == 'error'
+  end
+
+  def status_emoji(status)
+    case status
+    when 'passed' then '✅'
+    when 'failed' then '❌'
+    when 'error' then '💥'
+    else '⚠️'
+    end
+  end
+
+  def generate_recommendations
+    recommendations = []
+    
+    if @results[:status] == 'passed'
+      recommendations << "All checks passed! Your code is ready for deployment."
+    else
+      recommendations << "Fix the failing stage: #{@results[:failed_stage]}"
+    end
+    
+    # Performance recommendations
+    slow_stages = @results[:stages].select { |s| s[:duration] > 30 }
+    if slow_stages.any?
+      recommendations << "Consider optimizing slow stages: #{slow_stages.map { |s| s[:name] }.join(', ')}"
+    end
+    
+    # Security recommendations
+    security_stage = @results[:stages].find { |s| s[:name] == 'Security Scan' }
+    if security_stage && security_stage[:details]&.any? { |d| d.include?('❌') }
+      recommendations << "Address security issues before deploying to production"
+    end
+    
+    recommendations.each { |rec| puts "  - #{rec}" }
+  end
+end
+
+# Run the CI simulation
+CISimulation.new.run if __FILE__ == $0

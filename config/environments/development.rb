@@ -90,11 +90,23 @@ Rails.application.configure do
   # require 'syslog/logger'
   config.logger = ActiveSupport::Logger.new(Rails.root.join('log', "#{Rails.env}.log"), 1, ENV.fetch('LOG_SIZE', '1024').to_i.megabytes)
 
-  # Bullet configuration to fix the N+1 queries
+  # Bullet configuration to fix the N+1 queries (conditional loading)
   config.after_initialize do
-    Bullet.enable = true
-    Bullet.bullet_logger = true
-    Bullet.rails_logger = true
+    if defined?(Bullet)
+      Bullet.enable = true
+      Bullet.bullet_logger = true
+      Bullet.rails_logger = true
+      Bullet.console = true if ENV['BULLET_CONSOLE']
+      Bullet.xmpp = false
+      Bullet.rails_logger = true
+      Bullet.honeybadger = false
+      Bullet.bugsnag = false
+      Bullet.airbrake = false
+      Bullet.rollbar = false
+      Bullet.add_footer = true if ENV['BULLET_FOOTER']
+      Bullet.stacktrace_includes = ['app']
+      Bullet.stacktrace_excludes = ['vendor', 'lib']
+    end
   end
 
   # Performance optimizations for development
@@ -107,5 +119,42 @@ Rails.application.configure do
     config.middleware.insert_before ActionDispatch::ShowExceptions, Rack::Timeout::Middleware
     Rack::Timeout.timeout = 30  # 30 seconds timeout instead of default 15
     Rack::Timeout.wait_timeout = 5   # 5 seconds wait timeout
+  end
+
+  # Enhanced development debugging configuration
+  config.after_initialize do
+    # Enable ActiveRecord query logging with caller information
+    if ENV['VERBOSE_QUERIES'] && config.respond_to?(:active_record)
+      config.active_record.verbose_query_logs = true if config.active_record.respond_to?(:verbose_query_logs=)
+    end
+
+    # Memory usage tracking in development
+    if ENV['MEMORY_PROFILER']
+      require 'memory_profiler' if defined?(MemoryProfiler)
+    end
+
+    # Better error pages in development
+    if ENV['BETTER_ERRORS'] && defined?(BetterErrors)
+      BetterErrors.application_root = Rails.root
+      BetterErrors.editor = :vscode if ENV['EDITOR'] == 'vscode'
+      BetterErrors.editor = :sublime if ENV['EDITOR'] == 'sublime'
+    end
+  end
+
+  # Development-specific middleware for debugging
+  unless Rails.env.test?
+    # Query tracing middleware (conditional loading)
+    if ENV['QUERY_TRACE'] && defined?(ActiveRecordQueryTrace::Middleware)
+      config.middleware.use ActiveRecordQueryTrace::Middleware
+    end
+  end
+
+  # Console configuration for better Rails console experience
+  console do
+    # Load custom helpers and shortcuts for development
+    if defined?(Pry)
+      config.console = Pry
+      Pry.config.prompt_name = 'kirvano'
+    end
   end
 end

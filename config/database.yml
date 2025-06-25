@@ -9,14 +9,33 @@ default: &default
 
 development:
   <<: *default
-  # Performance optimizations for local development
+  # Enhanced performance optimizations for local development
   timeout: 5000
-  connect_timeout: 2
-  checkout_timeout: 2
+  connect_timeout: 1
+  checkout_timeout: 1
+  
+  # Increased pool size for better concurrency
+  pool: <%= ENV.fetch('RAILS_MAX_THREADS', 10) %>
+  
+  # Connection pool optimizations
+  reaping_frequency: <%= ENV.fetch('DB_POOL_REAPING_FREQUENCY', 10) %>
+  pool_timeout: 2
+  
+  # Development-specific PostgreSQL optimizations
   variables:
-    statement_timeout: <%= ENV.fetch('POSTGRES_STATEMENT_TIMEOUT', '5s') %>
-    lock_timeout: '3s'
-    idle_in_transaction_session_timeout: '10s'
+    statement_timeout: <%= ENV.fetch('POSTGRES_STATEMENT_TIMEOUT', '3s') %>
+    lock_timeout: '2s'
+    idle_in_transaction_session_timeout: '5s'
+  
+  # Enable prepared statements for better performance
+  prepared_statements: true
+  
+  # Development database connection optimizations
+  connect_timeout: 1
+  keepalive: true
+  keepalive_idle: 30
+  keepalive_interval: 10
+  keepalive_count: 3
 
 test:
   <<: *default

@@ -42,10 +42,107 @@ if (isLibraryMode) {
   plugins = [vue(vueOptions)];
 }
 
-// Production optimizations are handled in the build configuration below
+// Development and production optimizations
+const isDevelopment = process.env.NODE_ENV === 'development';
 
 export default defineConfig({
   plugins: plugins,
+  
+  // Development server configuration
+  server: {
+    hmr: {
+      port: 3036,
+      overlay: false, // Disable error overlay for better performance in development
+      clientPort: process.env.HMR_CLIENT_PORT ? parseInt(process.env.HMR_CLIENT_PORT) : 3036,
+    },
+    port: 3036,
+    host: '0.0.0.0',
+    strictPort: false,
+    fs: {
+      // Allow serving files from parent directories
+      allow: ['..'],
+      strict: false,
+    },
+    watch: {
+      // Enhanced file watching for better performance
+      ignored: [
+        '**/node_modules/**', 
+        '**/tmp/**', 
+        '**/log/**', 
+        '**/coverage/**', 
+        '**/public/packs/**',
+        '**/dist/**',
+        '**/.git/**'
+      ],
+      usePolling: process.env.VITE_USE_POLLING === 'true',
+      interval: 100,
+    },
+    cors: true,
+    middlewareMode: false,
+    
+    // Proxy configuration for API calls during development
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+        secure: false,
+        timeout: 10000,
+      },
+      '/rails': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+        secure: false,
+        timeout: 10000,
+      },
+    },
+  },
+  // Development optimizations
+  optimizeDeps: {
+    // Enhanced dependency pre-bundling for faster cold starts
+    force: false, // Don't force re-optimization every time
+    
+    include: [
+      'vue',
+      'vue-router',
+      'vuex',
+      'axios',
+      '@vueuse/core',
+      '@vueuse/components',
+      'date-fns',
+      'lodash.debounce',
+      'chart.js',
+      'markdown-it',
+      'prosemirror-model',
+      'prosemirror-state',
+      'prosemirror-view'
+    ],
+    exclude: [
+      '@vite/client', 
+      '@vitejs/plugin-vue', 
+      '@rails/actioncable'
+    ],
+    
+    // Enable esbuild for faster dependency processing
+    esbuildOptions: {
+      target: 'es2020',
+      keepNames: true,
+    }
+  },
+  
+  // Enable build caching for faster subsequent builds
+  cacheDir: 'node_modules/.vite',
+
+  // CSS configuration
+  css: {
+    devSourcemap: true,
+    preprocessorOptions: {
+      scss: {
+        additionalData: `@import "app/javascript/dashboard/assets/scss/variables.scss";`,
+        silenceDeprecations: ['legacy-js-api'],
+      },
+    },
+  },
+
   build: {
     // Production build optimizations
     target: 'es2020',

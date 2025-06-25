@@ -1,0 +1,353 @@
+#!/usr/bin/env ruby
+
+# Performance monitoring script for development
+# Usage: bin/performance-monitor [options]
+
+require 'optparse'
+require 'json'
+require 'benchmark'
+
+class PerformanceMonitor
+  def initialize
+    @options = {
+      duration: 60,
+      interval: 5,
+      memory: false,
+      cpu: false,
+      requests: false,
+      database: false,
+      output: 'console'
+    }
+  end
+
+  def run
+    parse_options
+    puts "🚀 Starting Kirvano Performance Monitor"
+    puts "Duration: #{@options[:duration]}s, Interval: #{@options[:interval]}s"
+    puts "Monitoring: #{enabled_monitors.join(', ')}"
+    puts "-" * 50
+
+    start_time = Time.current
+    measurements = []
+
+    while (Time.current - start_time) < @options[:duration]
+      measurement = collect_metrics
+      measurements << measurement
+      
+      display_metrics(measurement) if @options[:output] == 'console'
+      
+      sleep(@options[:interval])
+    end
+
+    generate_report(measurements)
+  end
+
+  private
+
+  def parse_options
+    OptionParser.new do |opts|
+      opts.banner = "Usage: #{$0} [options]"
+      
+      opts.on('-d', '--duration SECONDS', Integer, 'Monitoring duration (default: 60)') do |d|
+        @options[:duration] = d
+      end
+      
+      opts.on('-i', '--interval SECONDS', Integer, 'Measurement interval (default: 5)') do |i|
+        @options[:interval] = i
+      end
+      
+      opts.on('-m', '--memory', 'Monitor memory usage') do
+        @options[:memory] = true
+      end
+      
+      opts.on('-c', '--cpu', 'Monitor CPU usage') do
+        @options[:cpu] = true
+      end
+      
+      opts.on('-r', '--requests', 'Monitor HTTP requests') do
+        @options[:requests] = true
+      end
+      
+      opts.on('-b', '--database', 'Monitor database queries') do
+        @options[:database] = true
+      end
+      
+      opts.on('-o', '--output FORMAT', ['console', 'json', 'csv'], 'Output format') do |o|
+        @options[:output] = o
+      end
+      
+      opts.on('-h', '--help', 'Show this help') do
+        puts opts
+        exit
+      end
+    end.parse!
+  end
+
+  def enabled_monitors
+    monitors = []
+    monitors << 'Memory' if @options[:memory]
+    monitors << 'CPU' if @options[:cpu]
+    monitors << 'Requests' if @options[:requests]
+    monitors << 'Database' if @options[:database]
+    monitors << 'Basic' if monitors.empty?
+    monitors
+  end
+
+  def collect_metrics
+    metrics = {
+      timestamp: Time.current.iso8601,
+      basic: collect_basic_metrics
+    }
+
+    metrics[:memory] = collect_memory_metrics if @options[:memory]
+    metrics[:cpu] = collect_cpu_metrics if @options[:cpu]
+    metrics[:requests] = collect_request_metrics if @options[:requests]
+    metrics[:database] = collect_database_metrics if @options[:database]
+
+    metrics
+  end
+
+  def collect_basic_metrics
+    {
+      load_average: get_load_average,
+      processes: get_process_count,
+      disk_usage: get_disk_usage
+    }
+  end
+
+  def collect_memory_metrics
+    return {} unless system_has_command?('ps')
+    
+    # Get Rails server memory usage
+    rails_pid = get_rails_server_pid
+    return {} unless rails_pid
+
+    memory_info = `ps -o pid,rss,vsz -p #{rails_pid}`.lines.last&.split
+    return {} unless memory_info
+
+    {
+      rails_rss: memory_info[1].to_i * 1024, # Convert KB to bytes
+      rails_vsz: memory_info[2].to_i * 1024,
+      system_memory: get_system_memory
+    }
+  end
+
+  def collect_cpu_metrics
+    return {} unless system_has_command?('ps')
+    
+    rails_pid = get_rails_server_pid
+    return {} unless rails_pid
+
+    cpu_info = `ps -o pid,%cpu -p #{rails_pid}`.lines.last&.split
+    return {} unless cpu_info
+
+    {
+      rails_cpu: cpu_info[1].to_f,
+      system_load: get_load_average
+    }
+  end
+
+  def collect_request_metrics
+    # This would need to integrate with the Rails application
+    # For now, return placeholder metrics
+    {
+      active_connections: 0,
+      requests_per_second: 0,
+      average_response_time: 0
+    }
+  end
+
+  def collect_database_metrics
+    # This would need to integrate with the Rails application
+    # For now, return placeholder metrics
+    {
+      active_connections: 0,
+      queries_per_second: 0,
+      slow_queries: 0
+    }
+  end
+
+  def get_load_average
+    if File.exist?('/proc/loadavg')
+      File.read('/proc/loadavg').split.first.to_f
+    elsif system_has_command?('uptime')
+      uptime_output = `uptime`
+      uptime_output.match(/load averages?: ([\d.]+)/)[1].to_f rescue 0.0
+    else
+      0.0
+    end
+  end
+
+  def get_process_count
+    if system_has_command?('ps')
+      `ps aux | wc -l`.to_i - 1 # Subtract header line
+    else
+      0
+    end
+  end
+
+  def get_disk_usage
+    if system_has_command?('df')
+      df_output = `df -h . | tail -1`
+      usage_percent = df_output.split[4]
+      usage_percent.gsub('%', '').to_i
+    else
+      0
+    end
+  end
+
+  def get_rails_server_pid
+    if File.exist?('tmp/pids/server.pid')
+      File.read('tmp/pids/server.pid').strip.to_i
+    else
+      # Try to find Rails server process
+      if system_has_command?('pgrep')
+        `pgrep -f "rails server"`.strip.split.first&.to_i
+      end
+    end
+  end
+
+  def get_system_memory
+    if File.exist?('/proc/meminfo')
+      meminfo = File.read('/proc/meminfo')
+      total = meminfo.match(/MemTotal:\s+(\d+)/)[1].to_i * 1024
+      available = meminfo.match(/MemAvailable:\s+(\d+)/)[1].to_i * 1024
+      { total: total, available: available, used: total - available }
+    elsif system_has_command?('vm_stat')
+      # macOS
+      vm_stat = `vm_stat`
+      page_size = vm_stat.match(/page size of (\d+) bytes/)[1].to_i
+      free_pages = vm_stat.match(/Pages free:\s+(\d+)/)[1].to_i
+      { total: 0, available: free_pages * page_size, used: 0 }
+    else
+      { total: 0, available: 0, used: 0 }
+    end
+  end
+
+  def system_has_command?(command)
+    system("which #{command} > /dev/null 2>&1")
+  end
+
+  def display_metrics(measurement)
+    puts "[#{Time.current.strftime('%H:%M:%S')}] " +
+         "Load: #{measurement[:basic][:load_average]}, " +
+         "Processes: #{measurement[:basic][:processes]}, " +
+         "Disk: #{measurement[:basic][:disk_usage]}%"
+    
+    if measurement[:memory]
+      rss_mb = measurement[:memory][:rails_rss] / 1024 / 1024
+      puts "  Memory: Rails RSS: #{rss_mb}MB"
+    end
+    
+    if measurement[:cpu]
+      puts "  CPU: Rails: #{measurement[:cpu][:rails_cpu]}%"
+    end
+    
+    puts
+  end
+
+  def generate_report(measurements)
+    puts "\n" + "="*60
+    puts "🏁 PERFORMANCE MONITORING REPORT"
+    puts "="*60
+    
+    case @options[:output]
+    when 'json'
+      puts JSON.pretty_generate({
+        duration: @options[:duration],
+        interval: @options[:interval],
+        measurements: measurements,
+        summary: generate_summary(measurements)
+      })
+    when 'csv'
+      generate_csv_report(measurements)
+    else
+      generate_console_report(measurements)
+    end
+  end
+
+  def generate_summary(measurements)
+    return {} if measurements.empty?
+    
+    summary = {}
+    
+    # Basic metrics summary
+    loads = measurements.map { |m| m[:basic][:load_average] }.compact
+    if loads.any?
+      summary[:load_average] = {
+        min: loads.min,
+        max: loads.max,
+        avg: loads.sum / loads.size
+      }
+    end
+    
+    # Memory summary
+    if @options[:memory]
+      rss_values = measurements.map { |m| m[:memory]&.[](:rails_rss) }.compact
+      if rss_values.any?
+        summary[:memory] = {
+          min_mb: rss_values.min / 1024 / 1024,
+          max_mb: rss_values.max / 1024 / 1024,
+          avg_mb: (rss_values.sum / rss_values.size) / 1024 / 1024
+        }
+      end
+    end
+    
+    summary
+  end
+
+  def generate_console_report(measurements)
+    summary = generate_summary(measurements)
+    
+    puts "Measurements taken: #{measurements.size}"
+    puts "Duration: #{@options[:duration]}s"
+    
+    if summary[:load_average]
+      la = summary[:load_average]
+      puts "Load Average: #{la[:min]} - #{la[:max]} (avg: #{la[:avg].round(2)})"
+    end
+    
+    if summary[:memory]
+      mem = summary[:memory]
+      puts "Rails Memory: #{mem[:min_mb]}MB - #{mem[:max_mb]}MB (avg: #{mem[:avg_mb].round(2)}MB)"
+    end
+    
+    puts "\n💡 Tips:"
+    puts "  - Use -m to monitor memory usage"
+    puts "  - Use -c to monitor CPU usage"
+    puts "  - Use -o json for machine-readable output"
+    puts "="*60
+  end
+
+  def generate_csv_report(measurements)
+    # Generate CSV header
+    headers = ['timestamp']
+    headers += ['load_average', 'processes', 'disk_usage']
+    headers += ['rails_rss', 'rails_vsz'] if @options[:memory]
+    headers += ['rails_cpu'] if @options[:cpu]
+    
+    puts headers.join(',')
+    
+    measurements.each do |m|
+      row = [m[:timestamp]]
+      row += [m[:basic][:load_average], m[:basic][:processes], m[:basic][:disk_usage]]
+      
+      if @options[:memory] && m[:memory]
+        row += [m[:memory][:rails_rss], m[:memory][:rails_vsz]]
+      elsif @options[:memory]
+        row += [nil, nil]
+      end
+      
+      if @options[:cpu] && m[:cpu]
+        row += [m[:cpu][:rails_cpu]]
+      elsif @options[:cpu]
+        row += [nil]
+      end
+      
+      puts row.join(',')
+    end
+  end
+end
+
+# Run the monitor
+PerformanceMonitor.new.run if __FILE__ == $0
