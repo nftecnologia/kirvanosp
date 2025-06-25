@@ -25,8 +25,8 @@ RUN bundle config set --local deployment 'true' && \
     bundle clean --force
 
 # Copiar package.json e instalar dependências Node (caching layer)
-COPY package.json yarn.lock* ./
-RUN yarn install
+COPY package.json ./
+RUN yarn install --ignore-engines --network-timeout 300000
 
 # Copiar código fonte
 COPY . .
@@ -40,8 +40,7 @@ ENV SECRET_KEY_BASE=dummy
 RUN bundle exec rake assets:precompile
 
 # Clean up build dependencies and cache
-RUN yarn install --production --frozen-lockfile && \
-    rm -rf node_modules/.cache && \
+RUN rm -rf node_modules/.cache && \
     rm -rf /tmp/* && \
     rm -rf ~/.cache/yarn
 
