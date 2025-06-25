@@ -10,6 +10,7 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
     postgresql-client \
     libvips \
     && corepack enable \
+    && corepack prepare pnpm@10.2.0 --activate \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
