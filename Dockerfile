@@ -27,7 +27,8 @@ RUN bundle config set --local deployment 'true' && \
 
 # Copiar package.json e instalar dependências Node (caching layer)
 COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile --prod=false
+RUN which pnpm && pnpm --version && \
+    pnpm install --frozen-lockfile --prod=false
 
 # Copiar código fonte
 COPY . .
