@@ -9,8 +9,9 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
     libpq-dev \
     postgresql-client \
     libvips \
+    && rm -rf /var/lib/apt/lists/* \
     && npm install -g pnpm@10.2.0 \
-    && rm -rf /var/lib/apt/lists/*
+    && pnpm --version
 
 WORKDIR /app
 
@@ -26,8 +27,7 @@ RUN bundle config set --local deployment 'true' && \
 
 # Copiar package.json e instalar dependências Node (caching layer)
 COPY package.json pnpm-lock.yaml ./
-RUN which pnpm && pnpm --version && \
-    pnpm install --frozen-lockfile --prod=false
+RUN pnpm install --frozen-lockfile --prod=false
 
 # Copiar código fonte
 COPY . .
